@@ -21,6 +21,7 @@
 #endif
 #include <signal.h>
 #include <pthread.h>
+#include "perftest_logging.h"
 #include "multicast_resources.h"
 #include "perftest_communication.h"
 
@@ -35,12 +36,12 @@ static void signalCatcher (int sig)
 	if (sig == SIGINT) {
 
 		if (join_multicast_group(SUBN_ADM_METHOD_DELETE,sighandler_params))
-			fprintf(stderr,"Couldn't Unregister the Mcast group on the SM\n");
+			log_ebt("Couldn't Unregister the Mcast group on the SM\n");
 
 		if (sighandler_params->is_2nd_mgid_used) {
 			memcpy(sighandler_params->mgid.raw,sighandler_params->base_mgid.raw,16);
 			if (join_multicast_group(SUBN_ADM_METHOD_DELETE,sighandler_params))
-				fprintf(stderr,"Couldn't Unregister the Base Mcast group on the SM\n");
+				log_ebt("Couldn't Unregister the Base Mcast group on the SM\n");
 		}
 	}
 	exit(1);
@@ -105,7 +106,7 @@ static int check_mad_status(struct sa_mad_packet_t *samad_packet)
 	/* check the TransactionID to make sure this is the response */
 	/* for the join/leave multicast group request we posted */
 	if (user_trans_id != DEF_TRANS_ID) {
-		fprintf(stderr, "received a mad with TransactionID 0x%x, when expecting 0x%x\n",
+		log_ebt( "received a mad with TransactionID 0x%x, when expecting 0x%x\n",
 				(unsigned int)user_trans_id, (unsigned int)DEF_TRANS_ID);;
 		return 1;
 	}
@@ -115,7 +116,7 @@ static int check_mad_status(struct sa_mad_packet_t *samad_packet)
 	mad_header_status = INSERTF(mad_header_status, 0, ptr[5], 0, 8);
 
 	if (mad_header_status) {
-		fprintf(stderr,"received UMAD with an error: 0x%x\n", mad_header_status);
+		log_ebt("received UMAD with an error: 0x%x\n", mad_header_status);
 		return 1;
 	}
 
@@ -231,25 +232,25 @@ int join_multicast_group(subn_adm_method method,struct mcast_parameters *params)
 
 	/* mlid will be assigned to the new LID after the join */
 	if (umad_init() < 0) {
-		fprintf(stderr, "failed to init the UMAD library\n");
+		log_ebt( "failed to init the UMAD library\n");
 		goto cleanup;
 	}
 	/* use casting to loose the "const char0 *" */
 	portid = umad_open_port((char*)params->ib_devname,params->ib_port);
 	if (portid < 0) {
-		fprintf(stderr,"failed to open UMAD port %d\n",params->ib_port);
+		log_ebt("failed to open UMAD port %d\n",params->ib_port);
 		goto cleanup;
 	}
 
 	agentid = umad_register(portid,MANAGMENT_CLASS_SUBN_ADM, 2, 0, 0);
 	if (agentid < 0) {
-		fprintf(stderr,"failed to register UMAD agent for MADs\n");
+		log_ebt("failed to register UMAD agent for MADs\n");
 		goto cleanup;
 	}
 
 	umad_buff = umad_alloc(1, umad_size() + MAD_SIZE);
 	if (!umad_buff) {
-		fprintf(stderr, "failed to allocate MAD buffer\n");
+		log_ebt( "failed to allocate MAD buffer\n");
 		goto cleanup;
 	}
 
@@ -257,27 +258,27 @@ int join_multicast_group(subn_adm_method method,struct mcast_parameters *params)
 	prepare_mcast_mad(method,params,(struct sa_mad_packet_t *)mad);
 
 	if (set_pkey(umad_buff, params->ib_ctx, params->ib_port)) {
-		fprintf(stderr, "failed to set pkey index\n");
+		log_ebt( "failed to set pkey index\n");
 		goto cleanup;
 	}
 
 	if (umad_set_addr(umad_buff,params->sm_lid,1,params->sm_sl,QP1_WELL_KNOWN_Q_KEY) < 0) {
-		fprintf(stderr, "failed to set the destination address of the SMP\n");
+		log_ebt( "failed to set the destination address of the SMP\n");
 		goto cleanup;
 	}
 
 	if (umad_send(portid,agentid,umad_buff,MAD_SIZE,100,5) < 0) {
-		fprintf(stderr, "failed to send MAD\n");
+		log_ebt( "failed to send MAD\n");
 		goto cleanup;
 	}
 
 	if (umad_recv(portid,umad_buff,&length,5000) < 0) {
-		fprintf(stderr, "failed to receive MAD response\n");
+		log_ebt( "failed to receive MAD response\n");
 		goto cleanup;
 	}
 
 	if (check_mad_status((struct sa_mad_packet_t*)mad)) {
-		fprintf(stderr, "failed to get mlid from MAD\n");
+		log_ebt( "failed to get mlid from MAD\n");
 		goto cleanup;
 	}
 
@@ -299,13 +300,13 @@ cleanup:
 	if (portid >= 0) {
 		if (agentid >= 0) {
 			if (umad_unregister(portid, agentid)) {
-				fprintf(stderr, "failed to deregister UMAD agent for MADs\n");
+				log_ebt( "failed to deregister UMAD agent for MADs\n");
 				test_result = 1;
 			}
 		}
 
 		if (umad_close_port(portid)) {
-			fprintf(stderr, "failed to close UMAD portid\n");
+			log_ebt( "failed to close UMAD portid\n");
 			test_result = 1;
 		}
 	}

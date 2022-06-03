@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 
 #define COUNTER_PATH "/sys/class/infiniband/%s/ports/%i/%s"

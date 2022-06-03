@@ -45,6 +45,7 @@
 #endif
 
 #include "get_clock.h"
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 #include "perftest_resources.h"
 #include "perftest_communication.h"
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
 	ret_parser = parser(&user_param,argv,argc);
 	if (ret_parser) {
 		if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT)
-			fprintf(stderr," Parser function exited with Error\n");
+			log_ebt(" Parser function exited with Error\n");
 		return FAILURE;
 	}
 
@@ -87,14 +88,14 @@ int main(int argc, char *argv[])
 	/* Finding the IB device selected (or defalut if no selected). */
 	ib_dev = ctx_find_dev(&user_param.ib_devname);
 	if (!ib_dev) {
-		fprintf(stderr," Unable to find the Infiniband/RoCE device\n");
+		log_ebt(" Unable to find the Infiniband/RoCE device\n");
 		return FAILURE;
 	}
 
 	/* Getting the relevant context from the device */
 	ctx.context = ibv_open_device(ib_dev);
 	if (!ctx.context) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		return FAILURE;
 	}
 
@@ -106,13 +107,13 @@ int main(int argc, char *argv[])
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_link(ctx.context,&user_param)) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		return FAILURE;
 	}
 
 	/* copy the relevant user parameters to the comm struct + creating rdma_cm resources. */
 	if (create_comm_struct(&user_comm,&user_param)) {
-		fprintf(stderr," Unable to create RDMA_CM resources\n");
+		log_ebt(" Unable to create RDMA_CM resources\n");
 		return FAILURE;
 	}
 
@@ -124,7 +125,7 @@ int main(int argc, char *argv[])
 
 	/* Initialize the connection and print the local data. */
 	if (establish_connection(&user_comm)) {
-		fprintf(stderr," Unable to init the socket connection\n");
+		log_ebt(" Unable to init the socket connection\n");
 		return FAILURE;
 	}
 
@@ -134,7 +135,7 @@ int main(int argc, char *argv[])
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_mtu(ctx.context,&user_param, &user_comm)) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		return FAILURE;
 	}
 
@@ -151,21 +152,21 @@ int main(int argc, char *argv[])
 		rc = create_rdma_cm_connection(&ctx, &user_param, &user_comm,
 			my_dest, rem_dest);
 		if (rc) {
-			fprintf(stderr,
+			log_ebt(
 				"Failed to create RDMA CM connection with resources.\n");
 			return FAILURE;
 		}
 	} else {
 		/* create all the basic IB resources (data buffer, PD, MR, CQ and events channel) */
 		if (ctx_init(&ctx,&user_param)) {
-			fprintf(stderr, " Couldn't create IB resources\n");
+			log_ebt( " Couldn't create IB resources\n");
 			return FAILURE;
 		}
 	}
 
 	/* Set up the Connection. */
 	if (set_up_connection(&ctx,&user_param,my_dest)) {
-		fprintf(stderr," Unable to set up socket connection\n");
+		log_ebt(" Unable to set up socket connection\n");
 		return FAILURE;
 	}
 
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 
 	/* shaking hands and gather the other side info. */
 	if (ctx_hand_shake(&user_comm,my_dest,rem_dest)) {
-		fprintf(stderr,"Failed to exchange data between server and clients\n");
+		log_ebt("Failed to exchange data between server and clients\n");
 		return FAILURE;
 	}
 
@@ -182,22 +183,22 @@ int main(int argc, char *argv[])
 
 		/* shaking hands and gather the other side info. */
 		if (ctx_hand_shake(&user_comm,&my_dest[i],&rem_dest[i])) {
-			fprintf(stderr,"Failed to exchange data between server and clients\n");
+			log_ebt("Failed to exchange data between server and clients\n");
 			return FAILURE;
 		}
 	}
 
 	if (user_param.work_rdma_cm == OFF) {
 		if (ctx_check_gid_compatibility(&my_dest[0], &rem_dest[0])) {
-			fprintf(stderr,"\n Found Incompatibility issue with GID types.\n");
-			fprintf(stderr," Please Try to use a different IP version.\n\n");
+			log_ebt("\n Found Incompatibility issue with GID types.\n");
+			log_ebt(" Please Try to use a different IP version.\n\n");
 			return FAILURE;
 		}
 	}
 
 	if (user_param.work_rdma_cm == OFF) {
 		if (ctx_connect(&ctx,rem_dest,&user_param,my_dest)) {
-			fprintf(stderr," Unable to Connect the HCA's through the link\n");
+			log_ebt(" Unable to Connect the HCA's through the link\n");
 			return FAILURE;
 		}
 	}
@@ -206,7 +207,7 @@ int main(int argc, char *argv[])
 	{
 		/* Set up connection one more time to send qpn properly for DC */
 		if (set_up_connection(&ctx,&user_param,my_dest)) {
-			fprintf(stderr," Unable to set up socket connection\n");
+			log_ebt(" Unable to set up socket connection\n");
 			return FAILURE;
 		}
 	}
@@ -222,7 +223,7 @@ int main(int argc, char *argv[])
 	for (i=0; i < user_param.num_of_qps; i++) {
 
 		if (ctx_hand_shake(&user_comm,&my_dest[i],&rem_dest[i])) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			return FAILURE;
 		}
 
@@ -231,14 +232,14 @@ int main(int argc, char *argv[])
 
 	/* An additional handshake is required after moving qp to RTR. */
 	if (ctx_hand_shake(&user_comm,my_dest,rem_dest)) {
-		fprintf(stderr,"Failed to exchange data between server and clients\n");
+		log_ebt("Failed to exchange data between server and clients\n");
 		return FAILURE;
 	}
 
 	/* Only Client post read request. */
 	if (user_param.machine == SERVER) {
 		if (ctx_close_connection(&user_comm,my_dest,rem_dest)) {
-			fprintf(stderr,"Failed to close connection between server and client\n");
+			log_ebt("Failed to close connection between server and client\n");
 			return FAILURE;
 		}
 		if (user_param.output == FULL_VERBOSITY) {
@@ -249,7 +250,7 @@ int main(int argc, char *argv[])
 
 	if (user_param.use_event) {
 		if (ibv_req_notify_cq(ctx.send_cq, 0)) {
-			fprintf(stderr, "Couldn't request CQ notification\n");
+			log_ebt( "Couldn't request CQ notification\n");
 			return FAILURE;
 		}
 	}
@@ -267,7 +268,7 @@ int main(int argc, char *argv[])
 	user_param.test_type == ITERATIONS ? print_report_lat(&user_param) : print_report_lat_duration(&user_param);
 
 	if (ctx_close_connection(&user_comm,my_dest,rem_dest)) {
-		fprintf(stderr,"Failed to close connection between server and client\n");
+		log_ebt("Failed to close connection between server and client\n");
 		return FAILURE;
 	}
 

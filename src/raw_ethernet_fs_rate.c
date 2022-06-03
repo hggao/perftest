@@ -46,6 +46,7 @@
 #include <getopt.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 #include "perftest_resources.h"
 #include "multicast_resources.h"
@@ -79,7 +80,7 @@ int main(int argc, char *argv[])
 
 	if (ret_parser) {
 		if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT) {
-			fprintf(stderr, " Parser function exited with Error\n");
+			log_ebt( " Parser function exited with Error\n");
 		}
 		DEBUG_LOG(TRACE,"<<<<<<%s", __FUNCTION__);
 		return FAILURE;
@@ -95,7 +96,7 @@ int main(int argc, char *argv[])
 	/* Finding the IB device selected (or default if no selected). */
 	ib_dev = ctx_find_dev(&user_param.ib_devname);
 	if (!ib_dev) {
-		fprintf(stderr, "Unable to find the Infiniband/RoCE device\n");
+		log_ebt( "Unable to find the Infiniband/RoCE device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -107,14 +108,14 @@ int main(int argc, char *argv[])
 	/* Getting the relevant context from the device */
 	ctx.context = ibv_open_device(ib_dev);
 	if (!ctx.context) {
-		fprintf(stderr, "Couldn't get context for the device\n");
+		log_ebt( "Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_link_and_mtu(ctx.context, &user_param)) {
-		fprintf(stderr, "Couldn't get context for the device\n");
+		log_ebt( "Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -124,7 +125,7 @@ int main(int argc, char *argv[])
 
 	/* create all the basic IB resources (data buffer, PD, MR, CQ and events channel) */
 	if (ctx_init(&ctx, &user_param)) {
-		fprintf(stderr, "Couldn't create IB resources\n");
+		log_ebt( "Couldn't create IB resources\n");
 		return FAILURE;
 	}
 
@@ -132,14 +133,14 @@ int main(int argc, char *argv[])
 	ctx_print_test_info(&user_param);
 
 	if(run_iter_fs(&ctx, &user_param)){
-		fprintf(stderr, "Unable to run iter fs rate\n");
+		log_ebt( "Unable to run iter fs rate\n");
 		return FAILURE;
 	}
 
 	print_report_fs_rate(&user_param);
 
 	if (destroy_ctx(&ctx, &user_param)) {
-		fprintf(stderr, "Failed to destroy_ctx\n");
+		log_ebt( "Failed to destroy_ctx\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}

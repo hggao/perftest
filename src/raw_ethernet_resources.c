@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 #include "perftest_resources.h"
 #include "multicast_resources.h"
@@ -76,12 +77,12 @@ int check_flow_steering_support(char *dev_name)
 
 	int val = atoi(line);
 	if (val >= 0) {
-		fprintf(stderr,"flow steering is not supported.\n");
-		fprintf(stderr," please run: echo options mlx4_core log_num_mgm_entry_size=-1 >> /etc/modprobe.d/mlnx.conf\n");
+		log_ebt("flow steering is not supported.\n");
+		log_ebt(" please run: echo options mlx4_core log_num_mgm_entry_size=-1 >> /etc/modprobe.d/mlnx.conf\n");
 		if (access(openibd_path, F_OK) != -1)
-			fprintf(stderr," and restart the driver: %s restart \n", openibd_path);
+			log_ebt(" and restart the driver: %s restart \n", openibd_path);
 		else
-			fprintf(stderr," and restart the driver: modprobe -r mlx4_core; modprobe mlx4_core \n");
+			log_ebt(" and restart the driver: modprobe -r mlx4_core; modprobe mlx4_core \n");
 		is_flow_steering_supported =  1;
 	}
 
@@ -316,7 +317,7 @@ void print_ethernet_header(void* in_ethernet_header)
 {
 	struct ETH_header* p_ethernet_header = in_ethernet_header;
 	if (NULL == p_ethernet_header) {
-		fprintf(stderr, "ETH_header pointer is Null\n");
+		log_ebt( "ETH_header pointer is Null\n");
 		return;
 	}
 
@@ -353,7 +354,7 @@ void print_ethernet_vlan_header(void* in_ethernet_header)
 {
 	struct ETH_vlan_header* p_ethernet_header = in_ethernet_header;
         if (NULL == p_ethernet_header) {
-                fprintf(stderr, "ETH_header pointer is Null\n");
+                log_ebt( "ETH_header pointer is Null\n");
                 return;
         }
 
@@ -395,7 +396,7 @@ void print_ip_header(struct IP_V4_header* ip_header)
 	char str_ip_d[INET_ADDRSTRLEN];
 
 	if (NULL == ip_header) {
-		fprintf(stderr, "IP_V4_header pointer is Null\n");
+		log_ebt( "IP_V4_header pointer is Null\n");
 		return;
 	}
 
@@ -430,7 +431,7 @@ void print_ip6_header(struct IP_V6_header* ip_header)
 	char str_ip_d[INET6_ADDRSTRLEN];
 
 	if (NULL == ip_header) {
-		fprintf(stderr, "IP_V6_header pointer is Null\n");
+		log_ebt( "IP_V6_header pointer is Null\n");
 		return;
 	}
 
@@ -456,7 +457,7 @@ void print_ip6_header(struct IP_V6_header* ip_header)
 void print_udp_header(struct UDP_header* udp_header)
 {
 	if(NULL == udp_header) {
-		fprintf(stderr, "udp_header pointer is Null\n");
+		log_ebt( "udp_header pointer is Null\n");
 		return;
 	}
 	printf("**UDP header***********\n");
@@ -474,7 +475,7 @@ void print_udp_header(struct UDP_header* udp_header)
 void print_tcp_header(struct TCP_header* tcp_header)
 {
 	if(NULL == tcp_header) {
-		fprintf(stderr, "tcp_header pointer is Null\n");
+		log_ebt( "tcp_header pointer is Null\n");
 		return;
 	}
 	printf("**TCP header***********\n");
@@ -829,7 +830,7 @@ int set_up_fs_rules(
 		for (flow_index = 0; flow_index < allocated_flows; flow_index++) {
 			if (set_up_flow_rules(&flow_rules[(qp_index * allocated_flows) + flow_index],
 					      ctx, user_param, local_port, remote_port)) {
-				fprintf(stderr, "Unable to set up flow rules\n");
+				log_ebt( "Unable to set up flow rules\n");
 	                        return FAILURE;
 			}
 			if (flow_index <= allowed_server_ports) {
@@ -983,7 +984,7 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 				err = ibv_post_send(ctx->qp[index], &ctx->wr[index*user_param->post_list], &bad_wr);
 
 				if(err) {
-					fprintf(stderr, "Couldn't post send: qp %d scnt=%lu \n", index, ctx->scnt[index]);
+					log_ebt( "Couldn't post send: qp %d scnt=%lu \n", index, ctx->scnt[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -1007,7 +1008,7 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		if (user_param->use_event) {
 
 			if (ctx_notify_events(ctx->channel)) {
-				fprintf(stderr, "Failed to notify events to CQ");
+				log_ebt( "Failed to notify events to CQ");
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -1038,7 +1039,7 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					totrcnt++;
 				}
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt( "poll CQ failed %d\n", ne);
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -1067,7 +1068,7 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 						user_param->iters += user_param->cq_mod;
 				}
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt( "poll CQ failed %d\n", ne);
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -1075,7 +1076,7 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 				if (user_param->test_type==DURATION ||
 					rcnt_for_qp[0] + user_param->rx_depth <= user_param->iters) {
 						if (ibv_post_recv(ctx->qp[0], &ctx->rwr[0], &bad_wr_recv)) {
-							fprintf(stderr, "Couldn't post recv Qp=%d rcnt=%lu\n", 0, rcnt_for_qp[0]);
+							log_ebt( "Couldn't post recv Qp=%d rcnt=%lu\n", 0, rcnt_for_qp[0]);
 							return_value = 15;
 							goto cleaning;
 						}

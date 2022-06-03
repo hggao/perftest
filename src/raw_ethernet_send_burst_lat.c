@@ -46,6 +46,7 @@
 #include <getopt.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 #include "perftest_resources.h"
 #include "multicast_resources.h"
@@ -93,7 +94,7 @@ int main(int argc, char *argv[])
 	/* check for parsing errors */
 	if (ret_parser) {
 		if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT)
-			fprintf(stderr," Parser function exited with Error\n");
+			log_ebt(" Parser function exited with Error\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 	/* Find the selected IB device (or default if the user didn't select one). */
 	ib_dev = ctx_find_dev(&user_param.ib_devname);
 	if (!ib_dev) {
-		fprintf(stderr," Unable to find the Infiniband/RoCE device\n");
+		log_ebt(" Unable to find the Infiniband/RoCE device\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}
@@ -121,7 +122,7 @@ int main(int argc, char *argv[])
 	/* Getting the relevant context from the device */
 	ctx.context = ibv_open_device(ib_dev);
 	if (!ctx.context) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}
@@ -134,7 +135,7 @@ int main(int argc, char *argv[])
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_link_and_mtu(ctx.context, &user_param)) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}
@@ -146,7 +147,7 @@ int main(int argc, char *argv[])
 	 * so the function will setup like it's a bidirectional test
 	 */
 	if (send_set_up_connection(flow_rules, &ctx, &user_param, &my_dest_info, &rem_dest_info)) {
-		fprintf(stderr," Unable to set up socket connection\n");
+		log_ebt(" Unable to set up socket connection\n");
 		return FAILURE;
 	}
 
@@ -158,7 +159,7 @@ int main(int argc, char *argv[])
 
 	/* initalize IB resources (data buffer, PD, MR, CQ and events channel) */
 	if (ctx_init(&ctx, &user_param)) {
-		fprintf(stderr, " Couldn't create IB resources\n");
+		log_ebt( " Couldn't create IB resources\n");
 		return FAILURE;
 	}
 
@@ -169,7 +170,7 @@ int main(int argc, char *argv[])
 
 		if (!flow_create_result[i]){
 			perror("error");
-			fprintf(stderr, "Couldn't attach QP\n");
+			log_ebt( "Couldn't attach QP\n");
 			return FAILURE;
 		}
 	}
@@ -184,7 +185,7 @@ int main(int argc, char *argv[])
 
 		if ((flow_promisc = ibv_create_flow(ctx.qp[0], &attr)) == NULL) {
 			perror("error");
-			fprintf(stderr, "Couldn't attach promiscuous rule QP\n");
+			log_ebt( "Couldn't attach promiscuous rule QP\n");
 		}
 	}
 
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
 
 	/* modify QPs to rtr/rts */
 	if (ctx_connect(&ctx, NULL, &user_param, NULL)) {
-		fprintf(stderr," Unable to Connect the HCA's through the link\n");
+		log_ebt(" Unable to Connect the HCA's through the link\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}
@@ -207,7 +208,7 @@ int main(int argc, char *argv[])
 	ctx_set_send_wqes(&ctx,&user_param,NULL);
 
 	if (ctx_set_recv_wqes(&ctx,&user_param)) {
-		fprintf(stderr," Failed to post receive recv_wqes\n");
+		log_ebt(" Failed to post receive recv_wqes\n");
 		return FAILURE;
 	}
 
@@ -231,7 +232,7 @@ int main(int argc, char *argv[])
 	if (user_param.use_promiscuous) {
 		if (ibv_destroy_flow(flow_promisc)) {
 			perror("error");
-			fprintf(stderr, "Couldn't destroy promisc flow\n");
+			log_ebt( "Couldn't destroy promisc flow\n");
 			return FAILURE;
 		}
 	}
@@ -240,7 +241,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < user_param.flows; i++) {
 		if (ibv_destroy_flow(flow_create_result[i])) {
 			perror("error");
-			fprintf(stderr, "Couldn't destroy flow\n");
+			log_ebt( "Couldn't destroy flow\n");
 			return FAILURE;
 		}
 
@@ -249,7 +250,7 @@ int main(int argc, char *argv[])
 
 	/* Deallocate all perftest resources. */
 	if (destroy_ctx(&ctx, &user_param)) {
-		fprintf(stderr,"Failed to destroy_ctx\n");
+		log_ebt("Failed to destroy_ctx\n");
 		DEBUG_LOG(TRACE,"<<<<<<%s",__FUNCTION__);
 		return FAILURE;
 	}

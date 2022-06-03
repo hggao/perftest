@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include "perftest_logging.h"
 #include "perftest_communication.h"
 #ifdef HAVE_SRD
 #include <infiniband/efadv.h>
@@ -170,7 +171,7 @@ static int post_one_recv_wqe(struct pingpong_context *ctx)
 	wr.num_sge = 1;
 
 	if (ibv_post_recv(ctx->qp[0],&wr,&bad_wr)) {
-		fprintf(stderr, "Function ibv_post_recv failed for RDMA_CM QP\n");
+		log_ebt( "Function ibv_post_recv failed for RDMA_CM QP\n");
 		return FAILURE;
 	}
 
@@ -196,7 +197,7 @@ static int post_recv_to_get_ah(struct pingpong_context *ctx)
 	wr.num_sge = 1;
 
 	if (ibv_post_recv(ctx->qp[0],&wr,&bad_wr)) {
-		fprintf(stderr, "Function ibv_post_recv failed for RDMA_CM QP\n");
+		log_ebt( "Function ibv_post_recv failed for RDMA_CM QP\n");
 		return FAILURE;
 	}
 
@@ -236,7 +237,7 @@ static int send_qp_num_for_ah(struct pingpong_context *ctx,
 
 
 	if (ibv_post_send(ctx->qp[0],&wr,&bad_wr)) {
-		fprintf(stderr, "Function ibv_post_send failed\n");
+		log_ebt( "Function ibv_post_send failed\n");
 		return 1;
 	}
 
@@ -245,7 +246,7 @@ static int send_qp_num_for_ah(struct pingpong_context *ctx,
 	} while (ne == 0);
 
 	if (wc.status || wc.opcode != IBV_WC_SEND || wc.wr_id != 0) {
-		fprintf(stderr, " Couldn't post send my QP number %d\n",(int)wc.status);
+		log_ebt( " Couldn't post send my QP number %d\n",(int)wc.status);
 		return 1;
 	}
 
@@ -269,7 +270,7 @@ static int create_ah_from_wc_recv(struct pingpong_context *ctx,
 	} while (ne == 0);
 
 	if (wc.status || !(wc.opcode & IBV_WC_RECV) || wc.wr_id != 0) {
-		fprintf(stderr, "Bad wc status when trying to create AH -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
+		log_ebt( "Bad wc status when trying to create AH -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
 		return 1;
 	}
 
@@ -297,7 +298,7 @@ static int ethernet_write_keys(struct pingpong_dest *my_dest,
 
 		if (write(comm->rdma_params->sockfd,msg,sizeof msg) != sizeof msg) {
 			perror("client write");
-			fprintf(stderr, "Couldn't send local address\n");
+			log_ebt( "Couldn't send local address\n");
 			return 1;
 		}
 
@@ -317,7 +318,7 @@ static int ethernet_write_keys(struct pingpong_dest *my_dest,
 
 		if (write(comm->rdma_params->sockfd, msg, sizeof msg) != sizeof msg) {
 			perror("client write");
-			fprintf(stderr, "Couldn't send local address\n");
+			log_ebt( "Couldn't send local address\n");
 			return 1;
 		}
 
@@ -338,7 +339,7 @@ static int ethernet_read_keys(struct pingpong_dest *rem_dest,
 		char msg[KEY_MSG_SIZE];
 
 		if (read(comm->rdma_params->sockfd, msg, sizeof msg) != sizeof msg) {
-			fprintf(stderr, "ethernet_read_keys: Couldn't read remote address\n");
+			log_ebt( "ethernet_read_keys: Couldn't read remote address\n");
 			return 1;
 		}
 
@@ -347,7 +348,7 @@ static int ethernet_read_keys(struct pingpong_dest *rem_dest,
 				&rem_dest->psn, &rem_dest->rkey,&rem_dest->vaddr,&rem_dest->srqn);
 
 		if (parsed != 7) {
-			fprintf(stderr, "Couldn't parse line <%.*s>\n",(int)sizeof msg, msg);
+			log_ebt( "Couldn't parse line <%.*s>\n",(int)sizeof msg, msg);
 			return 1;
 		}
 
@@ -359,7 +360,7 @@ static int ethernet_read_keys(struct pingpong_dest *rem_dest,
 		int i;
 
 		if (read(comm->rdma_params->sockfd, msg, sizeof msg) != sizeof msg) {
-			fprintf(stderr, "ethernet_read_keys: Couldn't read remote address\n");
+			log_ebt( "ethernet_read_keys: Couldn't read remote address\n");
 			return 1;
 		}
 
@@ -471,7 +472,7 @@ static int rdma_write_keys(struct pingpong_dest *my_dest,
 	wr.next       = NULL;
 
 	if (ibv_post_send(comm->rdma_ctx->qp[0],&wr,&bad_wr)) {
-		fprintf(stderr, "Function ibv_post_send failed\n");
+		log_ebt( "Function ibv_post_send failed\n");
 		return 1;
 	}
 
@@ -480,7 +481,7 @@ static int rdma_write_keys(struct pingpong_dest *my_dest,
 	} while (ne == 0);
 
 	if (wc.status || wc.opcode != IBV_WC_SEND || wc.wr_id != SYNC_SPEC_ID) {
-		fprintf(stderr, " Bad wc status %d\n",(int)wc.status);
+		log_ebt( " Bad wc status %d\n",(int)wc.status);
 		return 1;
 	}
 
@@ -504,7 +505,7 @@ static int rdma_read_keys(struct pingpong_dest *rem_dest,
 	} while (ne == 0);
 
 	if (wc.status || !(wc.opcode & IBV_WC_RECV) || wc.wr_id != SYNC_SPEC_ID) {
-		fprintf(stderr, "Bad wc status -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
+		log_ebt( "Bad wc status -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
 		return 1;
 	}
 
@@ -523,7 +524,7 @@ static int rdma_read_keys(struct pingpong_dest *rem_dest,
 	#endif
 
 	if (post_one_recv_wqe(comm->rdma_ctx)) {
-		fprintf(stderr, "Couldn't post send \n");
+		log_ebt( "Couldn't post send \n");
 		return 1;
 	}
 
@@ -671,7 +672,7 @@ static int ethernet_client_connect(struct perftest_comm *comm)
 	}
 
 	if (check_add_port(&service,comm->rdma_params->port,comm->rdma_params->servername,&hints,&res)) {
-		fprintf(stderr, "Problem in resolving basic address and port\n");
+		log_ebt( "Problem in resolving basic address and port\n");
 		return 1;
 	}
 
@@ -681,7 +682,7 @@ static int ethernet_client_connect(struct perftest_comm *comm)
 			if (comm->rdma_params->has_source_ip) {
 				if (bind(sockfd, (struct sockaddr *)&source, sizeof(source)) < 0)
 				{
-					fprintf(stderr, "Failed to bind socket\n");
+					log_ebt( "Failed to bind socket\n");
 					return 1;
 				}
 			}
@@ -695,7 +696,7 @@ static int ethernet_client_connect(struct perftest_comm *comm)
 	freeaddrinfo(res);
 
 	if (sockfd < 0) {
-		fprintf(stderr, "Couldn't connect to %s:%d\n",comm->rdma_params->servername,comm->rdma_params->port);
+		log_ebt( "Couldn't connect to %s:%d\n",comm->rdma_params->servername,comm->rdma_params->port);
 		return 1;
 	}
 
@@ -722,7 +723,7 @@ static int ethernet_server_connect(struct perftest_comm *comm)
 
 	if (check_add_port(&service,comm->rdma_params->port,src_ip,&hints,&res))
 	{
-		fprintf(stderr, "Problem in resolving basic address and port\n");
+		log_ebt( "Problem in resolving basic address and port\n");
 		return 1;
 	}
 
@@ -741,7 +742,7 @@ static int ethernet_server_connect(struct perftest_comm *comm)
 	freeaddrinfo(res);
 
 	if (sockfd < 0) {
-		fprintf(stderr, "Couldn't listen to port %d\n", comm->rdma_params->port);
+		log_ebt( "Couldn't listen to port %d\n", comm->rdma_params->port);
 		return 1;
 	}
 
@@ -750,7 +751,7 @@ static int ethernet_server_connect(struct perftest_comm *comm)
 
 	if (connfd < 0) {
 		perror("server accept");
-		fprintf(stderr, "accept() failed\n");
+		log_ebt( "accept() failed\n");
 		close(sockfd);
 		return 1;
 	}
@@ -865,7 +866,7 @@ int set_up_connection(struct pingpong_context *ctx,
 		We do not fail test upon lid above RoCE.
 		if ( (user_param->gid_index < 0) ||  ((user_param->gid_index2 < 0) && (user_param->dualport == ON))  ){
 			if (!my_dest[i].lid) {
-				fprintf(stderr," Local lid 0x0 detected. Is an SM running? \n");
+				log_ebt(" Local lid 0x0 detected. Is an SM running? \n");
 				return -1;
 			}
 		}
@@ -876,7 +877,7 @@ int set_up_connection(struct pingpong_context *ctx,
 	if (user_param->use_xrc) {
 		for (i=0; i < user_param->num_of_qps; i++) {
 			if (ibv_get_srq_num(ctx->srq,&(my_dest[i].srqn))) {
-				fprintf(stderr, "Couldn't get SRQ number\n");
+				log_ebt( "Couldn't get SRQ number\n");
 				return 1;
 			}
 		}
@@ -887,7 +888,7 @@ int set_up_connection(struct pingpong_context *ctx,
 		if (user_param->connection_type == DC) {
 			for (i=0; i < user_param->num_of_qps; i++) {
 				if (ibv_get_srq_num(ctx->srq, &(my_dest[i].srqn))) {
-					fprintf(stderr, "Couldn't get SRQ number\n");
+					log_ebt( "Couldn't get SRQ number\n");
 					return 1;
 				}
 			}
@@ -915,7 +916,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	hints.ai_socktype = SOCK_STREAM;
 
 	if (check_add_port(&service,user_param->port,user_param->servername,&hints,&res)) {
-		fprintf(stderr, "Problem in resolving basic address and port\n");
+		log_ebt( "Problem in resolving basic address and port\n");
 		return FAILURE;
 	}
 
@@ -928,7 +929,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	if (user_param->has_source_ip) {
 		if (check_add_port(&service, 0x0, user_param->source_ip, &hints, &res))
 		{
-			fprintf(stderr, "Problem in resolving basic address and port\n");
+			log_ebt( "Problem in resolving basic address and port\n");
 			return FAILURE;
 		}
 		memset(&source_sin, 0x0, sizeof(source_sin));
@@ -940,17 +941,17 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	{
 
 		if (num_of_retry == 0) {
-			fprintf(stderr, "Received %d times ADDR_ERROR\n",NUM_OF_RETRIES);
+			log_ebt( "Received %d times ADDR_ERROR\n",NUM_OF_RETRIES);
 			return FAILURE;
 		}
 
 		if (rdma_resolve_addr(ctx->cm_id, source_ptr, (struct sockaddr *)&sin, 2000)) {
-			fprintf(stderr, "rdma_resolve_addr failed\n");
+			log_ebt( "rdma_resolve_addr failed\n");
 			return FAILURE;
 		}
 
 		if (rdma_get_cm_event(ctx->cm_channel,&event)) {
-			fprintf(stderr, "rdma_get_cm_events failed\n");
+			log_ebt( "rdma_get_cm_events failed\n");
 			return FAILURE;
 		}
 
@@ -961,7 +962,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 		}
 
 		if (event->event != RDMA_CM_EVENT_ADDR_RESOLVED) {
-			fprintf(stderr, "unexpected CM event %d\n",event->event);
+			log_ebt( "unexpected CM event %d\n",event->event);
 			rdma_ack_cm_event(event);
 			return FAILURE;
 		}
@@ -973,7 +974,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	if (user_param->tos != DEF_TOS) {
 
 		if (rdma_set_option(ctx->cm_id,RDMA_OPTION_ID,RDMA_OPTION_ID_TOS,&user_param->tos,sizeof(uint8_t))) {
-			fprintf(stderr, " Set TOS option failed: %d\n",event->event);
+			log_ebt( " Set TOS option failed: %d\n",event->event);
 			return FAILURE;
 		}
 	}
@@ -981,17 +982,17 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	while (1) {
 
 		if (num_of_retry <= 0) {
-			fprintf(stderr, "Received %d times ADDR_ERROR - aborting\n",NUM_OF_RETRIES);
+			log_ebt( "Received %d times ADDR_ERROR - aborting\n",NUM_OF_RETRIES);
 			return FAILURE;
 		}
 
 		if (rdma_resolve_route(ctx->cm_id,2000)) {
-			fprintf(stderr, "rdma_resolve_route failed\n");
+			log_ebt( "rdma_resolve_route failed\n");
 			return FAILURE;
 		}
 
 		if (rdma_get_cm_event(ctx->cm_channel,&event)) {
-			fprintf(stderr, "rdma_get_cm_events failed\n");
+			log_ebt( "rdma_get_cm_events failed\n");
 			return FAILURE;
 		}
 
@@ -1002,7 +1003,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 		}
 
 		if (event->event != RDMA_CM_EVENT_ROUTE_RESOLVED) {
-			fprintf(stderr, "unexpected CM event %d\n",event->event);
+			log_ebt( "unexpected CM event %d\n",event->event);
 			rdma_ack_cm_event(event);
 			return FAILURE;
 		}
@@ -1016,7 +1017,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	user_param->work_rdma_cm = ON;
 
 	if (ctx_init(ctx, user_param)) {
-		fprintf(stderr," Unable to create the resources needed by comm struct\n");
+		log_ebt(" Unable to create the resources needed by comm struct\n");
 		return FAILURE;
 	}
 
@@ -1032,23 +1033,23 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	if (user_param->work_rdma_cm == OFF) {
 
 		if (post_one_recv_wqe(ctx)) {
-			fprintf(stderr, "Couldn't post send \n");
+			log_ebt( "Couldn't post send \n");
 			return 1;
 		}
 	}
 
 	if (rdma_connect(ctx->cm_id,&conn_param)) {
-		fprintf(stderr, "Function rdma_connect failed\n");
+		log_ebt( "Function rdma_connect failed\n");
 		return FAILURE;
 	}
 
 	if (rdma_get_cm_event(ctx->cm_channel,&event)) {
-		fprintf(stderr, "rdma_get_cm_events failed\n");
+		log_ebt( "rdma_get_cm_events failed\n");
 		return FAILURE;
 	}
 
 	if (event->event != RDMA_CM_EVENT_ESTABLISHED) {
-		fprintf(stderr, "Unexpected CM event bl blka %d\n", event->event);
+		log_ebt( "Unexpected CM event bl blka %d\n", event->event);
 		rdma_ack_cm_event(event);
                 return FAILURE;
 	}
@@ -1088,18 +1089,18 @@ int retry_rdma_connect(struct pingpong_context *ctx,
 
 	for (i = 0; i < max_retries; i++) {
 		if (create_rdma_resources(ctx,user_param)) {
-			fprintf(stderr," Unable to create rdma resources\n");
+			log_ebt(" Unable to create rdma resources\n");
 			return FAILURE;
 		}
 		if (rdma_client_connect(ctx,user_param) == SUCCESS)
 			return SUCCESS;
 		if (destroy_rdma_resources(ctx,user_param)) {
-			fprintf(stderr,"Unable to destroy rdma resources\n");
+			log_ebt("Unable to destroy rdma resources\n");
 			return FAILURE;
 		}
 		usleep(delay);
 	}
-	fprintf(stderr,"Unable to connect (retries = %d)\n", max_retries);
+	log_ebt("Unable to connect (retries = %d)\n", max_retries);
 	return FAILURE;
 }
 
@@ -1127,7 +1128,7 @@ int rdma_server_connect(struct pingpong_context *ctx,
 
 	if (check_add_port(&service,user_param->port,src_ip,&hints,&res))
 	{
-		fprintf(stderr, "Problem in resolving basic address and port\n");
+		log_ebt( "Problem in resolving basic address and port\n");
 		return FAILURE;
 	}
 
@@ -1138,22 +1139,22 @@ int rdma_server_connect(struct pingpong_context *ctx,
 	sin.sin_port = htons((unsigned short)user_param->port);
 
 	if (rdma_bind_addr(ctx->cm_id_control,(struct sockaddr *)&sin)) {
-		fprintf(stderr," rdma_bind_addr failed\n");
+		log_ebt(" rdma_bind_addr failed\n");
 		return 1;
 	}
 
 	if (rdma_listen(ctx->cm_id_control, user_param->num_of_qps)) {
-		fprintf(stderr, "rdma_listen failed\n");
+		log_ebt( "rdma_listen failed\n");
 		return 1;
 	}
 
 	if (rdma_get_cm_event(ctx->cm_channel,&event)) {
-		fprintf(stderr, "rdma_get_cm_events failed\n");
+		log_ebt( "rdma_get_cm_events failed\n");
 		return 1;
 	}
 
 	if (event->event != RDMA_CM_EVENT_CONNECT_REQUEST) {
-		fprintf(stderr, "bad event waiting for connect request %d\n",event->event);
+		log_ebt( "bad event waiting for connect request %d\n",event->event);
 		return 1;
 	}
 
@@ -1167,7 +1168,7 @@ int rdma_server_connect(struct pingpong_context *ctx,
 	user_param->work_rdma_cm = ON;
 
 	if (ctx_init(ctx,user_param)) {
-		fprintf(stderr," Unable to create the resources needed by comm struct\n");
+		log_ebt(" Unable to create the resources needed by comm struct\n");
 		return FAILURE;
 	}
 
@@ -1186,7 +1187,7 @@ int rdma_server_connect(struct pingpong_context *ctx,
 	if (user_param->work_rdma_cm == OFF) {
 
 		if (post_one_recv_wqe(ctx)) {
-			fprintf(stderr, "Couldn't post send \n");
+			log_ebt( "Couldn't post send \n");
 			return 1;
 		}
 
@@ -1195,14 +1196,14 @@ int rdma_server_connect(struct pingpong_context *ctx,
 		if (user_param->tst == LAT || (user_param->tst == BW && user_param->duplex)) {
 
 			if (post_recv_to_get_ah(ctx)) {
-				fprintf(stderr, "Couldn't post send \n");
+				log_ebt( "Couldn't post send \n");
 				return 1;
 			}
 		}
 	}
 
 	if (rdma_accept(ctx->cm_id, &conn_param)) {
-		fprintf(stderr, "Function rdma_accept failed\n");
+		log_ebt( "Function rdma_accept failed\n");
 		return 1;
 	}
 
@@ -1210,7 +1211,7 @@ int rdma_server_connect(struct pingpong_context *ctx,
 
 		if (user_param->tst == LAT || (user_param->tst == BW && user_param->duplex)) {
 			if (create_ah_from_wc_recv(ctx,user_param)) {
-				fprintf(stderr, "Unable to create AH from WC\n");
+				log_ebt( "Unable to create AH from WC\n");
 				return 1;
 			}
 		}
@@ -1280,14 +1281,14 @@ int create_comm_struct(struct perftest_comm *comm,
 		comm->rdma_ctx->buff_size = user_param->cycle_buffer;
 
 		if (create_rdma_resources(comm->rdma_ctx,comm->rdma_params)) {
-			fprintf(stderr," Unable to create the resources needed by comm struct\n");
+			log_ebt(" Unable to create the resources needed by comm struct\n");
 			return FAILURE;
 		}
 	}
 
 	if ((user_param->counter_ctx) && (counters_open(user_param->counter_ctx,
 		user_param->ib_devname, user_param->ib_port))) {
-		fprintf(stderr," Unable to access performance counters\n");
+		log_ebt(" Unable to access performance counters\n");
 		return FAILURE;
 	}
 
@@ -1304,12 +1305,12 @@ int establish_connection(struct perftest_comm *comm)
 	if (comm->rdma_params->use_rdma_cm) {
 		if (comm->rdma_params->machine == CLIENT) {
 			if (rdma_client_connect(comm->rdma_ctx,comm->rdma_params)) {
-				fprintf(stderr," Unable to perform rdma_client function\n");
+				log_ebt(" Unable to perform rdma_client function\n");
 				return 1;
 			}
 		} else {
 			if (rdma_server_connect(comm->rdma_ctx,comm->rdma_params)) {
-				fprintf(stderr," Unable to perform rdma_server function\n");
+				log_ebt(" Unable to perform rdma_server function\n");
 				return 1;
 			}
 		}
@@ -1317,7 +1318,7 @@ int establish_connection(struct perftest_comm *comm)
 		ptr = comm->rdma_params->servername ? &ethernet_client_connect : &ethernet_server_connect;
 
 		if ((*ptr)(comm)) {
-			fprintf(stderr,"Unable to open file descriptor for socket connection");
+			log_ebt("Unable to open file descriptor for socket connection");
 			return 1;
 		}
 	}
@@ -1347,11 +1348,11 @@ int ctx_hand_shake(struct perftest_comm *comm,
 	rem_dest->gid_index = my_dest->gid_index;
 	if (comm->rdma_params->servername) {
 		if ((*write_func_ptr)(my_dest,comm)) {
-			fprintf(stderr," Unable to write to socket/rdma_cm\n");
+			log_ebt(" Unable to write to socket/rdma_cm\n");
 			return 1;
 		}
 		if ((*read_func_ptr)(rem_dest,comm)) {
-			fprintf(stderr," Unable to read from socket/rdma_cm\n");
+			log_ebt(" Unable to read from socket/rdma_cm\n");
 			return 1;
 		}
 
@@ -1359,11 +1360,11 @@ int ctx_hand_shake(struct perftest_comm *comm,
 	} else {
 
 		if ((*read_func_ptr)(rem_dest,comm)) {
-			fprintf(stderr," Unable to read to socket/rdma_cm\n");
+			log_ebt(" Unable to read to socket/rdma_cm\n");
 			return 1;
 		}
 		if ((*write_func_ptr)(my_dest,comm)) {
-			fprintf(stderr," Unable to write from socket/rdma_cm\n");
+			log_ebt(" Unable to write from socket/rdma_cm\n");
 			return 1;
 		}
 	}
@@ -1384,12 +1385,12 @@ int ctx_xchg_data_ethernet( struct perftest_comm *comm,
 {
 	if (comm->rdma_params->servername) {
 		if (ethernet_write_data(comm, (char *) my_data, size)) {
-			fprintf(stderr," Unable to write to socket/rdma_cm\n");
+			log_ebt(" Unable to write to socket/rdma_cm\n");
 			return 1;
 		}
 
 		if (ethernet_read_data(comm, (char *) rem_data, size)) {
-			fprintf(stderr," Unable to read from socket/rdma_cm\n");
+			log_ebt(" Unable to read from socket/rdma_cm\n");
 			return 1;
 		}
 
@@ -1397,12 +1398,12 @@ int ctx_xchg_data_ethernet( struct perftest_comm *comm,
 	} else {
 
 		if (ethernet_read_data(comm, (char *) rem_data, size)) {
-			fprintf(stderr," Unable to read to socket/rdma_cm\n");
+			log_ebt(" Unable to read to socket/rdma_cm\n");
 			return 1;
 		}
 
 		if (ethernet_write_data(comm, (char *) my_data, size)) {
-			fprintf(stderr," Unable to write from socket/rdma_cm\n");
+			log_ebt(" Unable to write from socket/rdma_cm\n");
 			return 1;
 		}
 	}
@@ -1418,12 +1419,12 @@ int ctx_xchg_data_rdma( struct perftest_comm *comm,
 {
 	if (comm->rdma_params->servername) {
 		if (rdma_write_data(my_data,comm,size)) {
-			fprintf(stderr," Unable to write to socket/rdma_cm\n");
+			log_ebt(" Unable to write to socket/rdma_cm\n");
 			return 1;
 		}
 
 		if (rdma_read_data(rem_data,comm,size)) {
-			fprintf(stderr," Unable to read from socket/rdma_cm\n");
+			log_ebt(" Unable to read from socket/rdma_cm\n");
 			return 1;
 		}
 
@@ -1431,12 +1432,12 @@ int ctx_xchg_data_rdma( struct perftest_comm *comm,
 	} else {
 
 		if (rdma_read_data(rem_data,comm,size)) {
-			fprintf(stderr," Unable to read to socket/rdma_cm\n");
+			log_ebt(" Unable to read to socket/rdma_cm\n");
 			return 1;
 		}
 
 		if (rdma_write_data(my_data,comm,size)) {
-			fprintf(stderr," Unable to write from socket/rdma_cm\n");
+			log_ebt(" Unable to write from socket/rdma_cm\n");
 			return 1;
 		}
 	}
@@ -1458,14 +1459,14 @@ int rdma_read_data(void *data,
 	} while (ne == 0);
 
 	if (wc.status || !(wc.opcode & IBV_WC_RECV) || wc.wr_id != SYNC_SPEC_ID) {
-		fprintf(stderr, "Bad wc status -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
+		log_ebt( "Bad wc status -- %d -- %d \n",(int)wc.status,(int)wc.wr_id);
 		return 1;
 	}
 
 	memcpy(data,comm->rdma_ctx->buf[0], size);
 
 	if (post_one_recv_wqe(comm->rdma_ctx)) {
-		fprintf(stderr, "Couldn't post send \n");
+		log_ebt( "Couldn't post send \n");
 		return 1;
 	}
 
@@ -1497,7 +1498,7 @@ int rdma_write_data(void *data,
 	wr.next       = NULL;
 
 	if (ibv_post_send(comm->rdma_ctx->qp[0],&wr,&bad_wr)) {
-		fprintf(stderr, "Function ibv_post_send failed\n");
+		log_ebt( "Function ibv_post_send failed\n");
 		return 1;
 	}
 
@@ -1506,7 +1507,7 @@ int rdma_write_data(void *data,
 	} while (ne == 0);
 
 	if (wc.status || wc.opcode != IBV_WC_SEND || wc.wr_id != SYNC_SPEC_ID) {
-		fprintf(stderr, " Bad wc status %d\n",(int)wc.status);
+		log_ebt( " Bad wc status %d\n",(int)wc.status);
 		return 1;
 	}
 
@@ -1520,7 +1521,7 @@ int ethernet_write_data(struct perftest_comm *comm, char *msg, size_t size)
 {
 	if (write(comm->rdma_params->sockfd, msg, size) != size) {
 		perror("client write");
-		fprintf(stderr, "Couldn't send reports\n");
+		log_ebt( "Couldn't send reports\n");
 		return 1;
 	}
 
@@ -1533,7 +1534,7 @@ int ethernet_write_data(struct perftest_comm *comm, char *msg, size_t size)
 int ethernet_read_data(struct perftest_comm *comm, char *recv_msg, size_t size)
 {
 	if (read(comm->rdma_params->sockfd, recv_msg, size) != size) {
-		fprintf(stderr, "ethernet_read_data: Couldn't read reports\n");
+		log_ebt( "ethernet_read_data: Couldn't read reports\n");
 		return 1;
 	}
 
@@ -1585,45 +1586,45 @@ void xchg_bw_reports (struct perftest_comm *comm, struct bw_report_data *my_bw_r
 
 	/*******************Exchange Reports*******************/
 	if (ctx_xchg_data(comm, (void*) (&temp.size), (void*) (&rem_bw_rep->size), sizeof(unsigned long))) {
-		fprintf(stderr," Failed to exchange data between server and clients\n");
+		log_ebt(" Failed to exchange data between server and clients\n");
 		exit(1);
 	}
 
 	size = (remote_version >= 5.33) ? sizeof(uint64_t) : sizeof(int);
 
 	if (ctx_xchg_data(comm, (void*) (&temp.iters), (void*) (&rem_bw_rep->iters), size)) {
-		fprintf(stderr," Failed to exchange data between server and clients\n");
+		log_ebt(" Failed to exchange data between server and clients\n");
 		exit(1);
 	}
 	if (ctx_xchg_data(comm, (void*) (&temp.bw_peak), (void*) (&rem_bw_rep->bw_peak), sizeof(double))) {
-		fprintf(stderr," Failed to exchange data between server and clients\n");
+		log_ebt(" Failed to exchange data between server and clients\n");
 		exit(1);
 	}
 	if (ctx_xchg_data(comm, (void*) (&temp.bw_avg), (void*) (&rem_bw_rep->bw_avg), sizeof(double))) {
-		fprintf(stderr," Failed to exchange data between server and clients\n");
+		log_ebt(" Failed to exchange data between server and clients\n");
 		exit(1);
 	}
 	if (ctx_xchg_data(comm, (void*) (&temp.msgRate_avg), (void*) (&rem_bw_rep->msgRate_avg), sizeof(double))) {
-		fprintf(stderr," Failed to exchange data between server and clients\n");
+		log_ebt(" Failed to exchange data between server and clients\n");
 		exit(1);
 	}
 
 	/*exchange data for report per port feature. should keep compatibility*/
 	if (comm->rdma_params->report_per_port) {
 		if (ctx_xchg_data(comm, (void*) (&temp.bw_avg_p1), (void*) (&rem_bw_rep->bw_avg_p1), sizeof(double))) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			exit(1);
 		}
 		if (ctx_xchg_data(comm, (void*) (&temp.msgRate_avg_p1), (void*) (&rem_bw_rep->msgRate_avg_p1), sizeof(double))) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			exit(1);
 		}
 		if (ctx_xchg_data(comm, (void*) (&temp.bw_avg_p2), (void*) (&rem_bw_rep->bw_avg_p2), sizeof(double))) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			exit(1);
 		}
 		if (ctx_xchg_data(comm, (void*) (&temp.msgRate_avg_p2), (void*) (&rem_bw_rep->msgRate_avg_p2), sizeof(double))) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			exit(1);
 		}
 	}
@@ -1710,7 +1711,7 @@ int ctx_close_connection(struct perftest_comm *comm,
 
 		if (write(comm->rdma_params->sockfd,"done",sizeof "done") != sizeof "done") {
 			perror(" Client write");
-			fprintf(stderr,"Couldn't write to socket\n");
+			log_ebt("Couldn't write to socket\n");
 			return -1;
 		}
 
@@ -1728,7 +1729,7 @@ void exchange_versions(struct perftest_comm *user_comm, struct perftest_paramete
 {
 	if (!user_param->dont_xchg_versions) {
 		if (ctx_xchg_data(user_comm,(void*)(&user_param->version),(void*)(&user_param->rem_version),sizeof(user_param->rem_version))) {
-			fprintf(stderr," Failed to exchange data between server and clients\n");
+			log_ebt(" Failed to exchange data between server and clients\n");
 			exit(1);
 		}
 	}
@@ -1741,7 +1742,7 @@ void check_version_compatibility(struct perftest_parameters *user_param)
 {
 	if ((atof(user_param->rem_version) < 5.70))
 	{
-		fprintf(stderr, "Current implementation is not compatible with versions older than 5.70\n");
+		log_ebt( "Current implementation is not compatible with versions older than 5.70\n");
 		exit(1);
 	}
 }
@@ -1764,11 +1765,11 @@ void check_sys_data(struct perftest_comm *user_comm, struct perftest_parameters 
 
 	if (!user_param->dont_xchg_versions) {
 		if (ctx_xchg_data(user_comm,(void*)(&m_cycle_buffer),(void*)(&rem_cycle_buffer), sizeof(user_param->cycle_buffer))) {
-			fprintf(stderr," Failed to exchange Page Size data between server and client\n");
+			log_ebt(" Failed to exchange Page Size data between server and client\n");
 			exit(1);
 		}
 		if (ctx_xchg_data(user_comm,(void*)(&m_cache_line_size),(void*)(&rem_cache_line_size), sizeof(user_param->cache_line_size))) {
-			fprintf(stderr," Failed to exchange Cache Line Size data between server and client\n");
+			log_ebt(" Failed to exchange Cache Line Size data between server and client\n");
 			exit(1);
 		}
 	}
@@ -1799,7 +1800,7 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 
 	if (user_param->connection_type == RawEth) {
 		if (set_eth_mtu(user_param) != 0 ) {
-			fprintf(stderr, " Couldn't set Eth MTU\n");
+			log_ebt( " Couldn't set Eth MTU\n");
 			return FAILURE;
 		}
 	} else {
@@ -1813,7 +1814,7 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 				size_of_cur = (rem_vers >= 5.31) ? sizeof(char[2]) : sizeof(int);
 
 				if (ctx_xchg_data(user_comm,(void*)(cur),(void*)(rem),size_of_cur)) {
-					fprintf(stderr," Failed to exchange data between server and clients\n");
+					log_ebt(" Failed to exchange data between server and clients\n");
 					exit(1);
 				}
 				rem_mtu = (int) strtol(rem, (char **)NULL, 10);
@@ -1828,20 +1829,20 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 
 	if (user_param->connection_type == UD && user_param->size > MTU_SIZE(user_param->curr_mtu)) {
 		if (user_param->test_method == RUN_ALL || !user_param->req_size) {
-			fprintf(stderr," Max msg size in UD is MTU %lu\n",MTU_SIZE(user_param->curr_mtu));
-			fprintf(stderr," Changing to this MTU\n");
+			log_ebt(" Max msg size in UD is MTU %lu\n",MTU_SIZE(user_param->curr_mtu));
+			log_ebt(" Changing to this MTU\n");
 			user_param->size = MTU_SIZE(user_param->curr_mtu);
 		}
 		else
 		{
-			fprintf(stderr," Max message size in UD cannot be greater than MTU \n");
+			log_ebt(" Max message size in UD cannot be greater than MTU \n");
 			return FAILURE;
 		}
 	} else if (user_param->connection_type == RawEth) {
 		/* checking msg size in raw ethernet */
 		if (user_param->size > user_param->curr_mtu) {
-			fprintf(stderr," Max msg size in RawEth is MTU %d\n",user_param->curr_mtu);
-			fprintf(stderr," Changing msg size to this MTU\n");
+			log_ebt(" Max msg size in RawEth is MTU %d\n",user_param->curr_mtu);
+			log_ebt(" Changing msg size to this MTU\n");
 			user_param->size = user_param->curr_mtu;
 		} else if (user_param->size < RAWETH_MIN_MSG_SIZE) {
 			printf(" Min msg size for RawEth is 64B - changing msg size to 64 \n");
@@ -1852,18 +1853,18 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 			struct ibv_port_attr port_attr;
 
 			if (ibv_query_port(context, user_param->ib_port, &port_attr)) {
-				fprintf(stderr, " Error when trying to query port\n");
+				log_ebt( " Error when trying to query port\n");
 				exit(1);
 			}
 
 			if (user_param->size > port_attr.max_msg_sz) {
 				if (user_param->test_method == RUN_ALL || !user_param->req_size) {
-					fprintf(stderr, " Max msg size is %u\n",
+					log_ebt( " Max msg size is %u\n",
 						port_attr.max_msg_sz);
-					fprintf(stderr, " Changing to this size\n");
+					log_ebt( " Changing to this size\n");
 					user_param->size = port_attr.max_msg_sz;
 				} else {
-					fprintf(stderr," Max message size in SRD cannot be greater than %u \n",
+					log_ebt(" Max message size in SRD cannot be greater than %u \n",
 						port_attr.max_msg_sz);
 					return FAILURE;
 				}
@@ -1873,27 +1874,27 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 			struct efadv_device_attr efa_device_attr = {};
 
 			if (efadv_query_device(context, &efa_device_attr, sizeof(efa_device_attr))) {
-				fprintf(stderr, " Error when trying to query EFA device\n");
+				log_ebt( " Error when trying to query EFA device\n");
 				exit(1);
 			}
 			if (!(efa_device_attr.device_caps & EFADV_DEVICE_ATTR_CAPS_RDMA_READ)) {
-				fprintf(stderr, "Read verb is not supported with this EFA device\n");
+				log_ebt( "Read verb is not supported with this EFA device\n");
 				exit(1);
 			}
 			if (user_param->size > efa_device_attr.max_rdma_size) {
 				if (user_param->test_method == RUN_ALL || !user_param->req_size) {
-					fprintf(stderr, " Max RDMA request size is %u\n",
+					log_ebt( " Max RDMA request size is %u\n",
 						efa_device_attr.max_rdma_size);
-					fprintf(stderr, " Changing to this size\n");
+					log_ebt( " Changing to this size\n");
 					user_param->size = efa_device_attr.max_rdma_size;
 				} else {
-					fprintf(stderr," Max RDMA read size in SRD cannot be greater than %u\n",
+					log_ebt(" Max RDMA read size in SRD cannot be greater than %u\n",
 						efa_device_attr.max_rdma_size);
 					return FAILURE;
 				}
 			}
 #else
-			fprintf(stderr, "SRD connection not possible in READ verb\n");
+			log_ebt( "SRD connection not possible in READ verb\n");
 			exit(1);
 #endif
 		}

@@ -46,6 +46,7 @@
 #include <getopt.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include "perftest_logging.h"
 #include "perftest_parameters.h"
 #include "perftest_resources.h"
 #include "multicast_resources.h"
@@ -88,7 +89,7 @@ int main(int argc, char *argv[])
 
 	if (ret_parser) {
 		if (ret_parser != VERSION_EXIT && ret_parser != HELP_EXIT) {
-			fprintf(stderr, " Parser function exited with Error\n");
+			log_ebt( " Parser function exited with Error\n");
 		}
 		DEBUG_LOG(TRACE,"<<<<<<%s", __FUNCTION__);
 		return FAILURE;
@@ -137,7 +138,7 @@ int main(int argc, char *argv[])
 	/* Finding the IB device selected (or default if no selected). */
 	ib_dev = ctx_find_dev(&user_param.ib_devname);
 	if (!ib_dev) {
-		fprintf(stderr," Unable to find the Infiniband/RoCE device\n");
+		log_ebt(" Unable to find the Infiniband/RoCE device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -149,7 +150,7 @@ int main(int argc, char *argv[])
 	/* Getting the relevant context from the device */
 	ctx.context = ibv_open_device(ib_dev);
 	if (!ctx.context) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -162,7 +163,7 @@ int main(int argc, char *argv[])
 
 	/* See if MTU and link type are valid and supported. */
 	if (check_link_and_mtu(ctx.context, &user_param)) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt( " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 	for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 		if (send_set_up_connection(&flow_rules[qp_index * user_param.flows],
 						&ctx, &user_param, &my_dest_info[qp_index], &rem_dest_info[qp_index])) {
-			fprintf(stderr, " Unable to set up socket connection\n");
+			log_ebt( " Unable to set up socket connection\n");
 			return FAILURE;
 		}
 	}
@@ -189,7 +190,7 @@ int main(int argc, char *argv[])
 
 	/* create all the basic IB resources (data buffer, PD, MR, CQ and events channel) */
 	if (ctx_init(&ctx, &user_param)) {
-		fprintf(stderr, " Couldn't create IB resources\n");
+		log_ebt( " Couldn't create IB resources\n");
 		return FAILURE;
 	}
 
@@ -211,7 +212,7 @@ int main(int argc, char *argv[])
 
 				if (!flow_create_result[flow_index + qp_index * user_param.flows]){
 					perror("error");
-					fprintf(stderr, "Couldn't attach QP\n");
+					log_ebt( "Couldn't attach QP\n");
 					return FAILURE;
 				}
 			}
@@ -228,7 +229,7 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if ((flow_promisc[qp_index] = ibv_create_flow(ctx.qp[qp_index], &attr)) == NULL) {
 					perror("error");
-					fprintf(stderr, "Couldn't attach promiscuous rule QP\n");
+					log_ebt( "Couldn't attach promiscuous rule QP\n");
 				}
 			}
 		}
@@ -244,7 +245,7 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if ((flow_sniffer[qp_index] = ibv_create_flow(ctx.qp[qp_index], &attr)) == NULL) {
 					perror("error");
-					fprintf(stderr, "Couldn't attach SNIFFER rule QP\n");
+					log_ebt( "Couldn't attach SNIFFER rule QP\n");
 				}
 			}
 		}
@@ -253,7 +254,7 @@ int main(int argc, char *argv[])
 
 	/* Prepare IB resources for rtr/rts. */
 	if (ctx_connect(&ctx, NULL, &user_param, NULL)) {
-		fprintf(stderr, " Unable to Connect the HCA's through the link\n");
+		log_ebt( " Unable to Connect the HCA's through the link\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -292,7 +293,7 @@ int main(int argc, char *argv[])
 
 		if (user_param.machine == SERVER || user_param.duplex) {
 			if (ctx_set_recv_wqes(&ctx, &user_param)) {
-				fprintf(stderr," Failed to post receive recv_wqes\n");
+				log_ebt(" Failed to post receive recv_wqes\n");
 				DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 				return FAILURE;
 			}
@@ -336,7 +337,7 @@ int main(int argc, char *argv[])
 		else if (user_param.machine == SERVER) {
 
 			if (ctx_set_recv_wqes(&ctx, &user_param)) {
-				fprintf(stderr, "Failed to post receive recv_wqes\n");
+				log_ebt( "Failed to post receive recv_wqes\n");
 				return FAILURE;
 			}
 		}
@@ -344,14 +345,14 @@ int main(int argc, char *argv[])
 		if (user_param.machine == CLIENT) {
 
 			if(run_iter_bw_infinitely(&ctx, &user_param)) {
-				fprintf(stderr, " Error occurred while running infinitely! aborting ...\n");
+				log_ebt( " Error occurred while running infinitely! aborting ...\n");
 				return FAILURE;
 			}
 
 		} else if (user_param.machine == SERVER) {
 
 			if(run_iter_bw_infinitely_server(&ctx, &user_param)) {
-				fprintf(stderr, " Error occurred while running infinitely on server! aborting ...\n");
+				log_ebt( " Error occurred while running infinitely on server! aborting ...\n");
 				return FAILURE;
 			}
 		}
@@ -363,7 +364,7 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if (ibv_destroy_flow(flow_create_result[flow_index + qp_index * user_param.flows])) {
 					perror("error");
-					fprintf(stderr, "Couldn't destroy flow\n");
+					log_ebt( "Couldn't destroy flow\n");
 					return FAILURE;
 				}
 			}
@@ -374,7 +375,7 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if (ibv_destroy_flow(flow_promisc[qp_index])) {
 					perror("error");
-					fprintf(stderr, "Couldn't destroy flow\n");
+					log_ebt( "Couldn't destroy flow\n");
 					return FAILURE;
 				}
 			}
@@ -386,7 +387,7 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if (ibv_destroy_flow(flow_sniffer[qp_index])) {
 					perror("error");
-					fprintf(stderr, "Couldn't destroy sniffer flow\n");
+					log_ebt( "Couldn't destroy sniffer flow\n");
 					return FAILURE;
 				}
 			}
@@ -398,14 +399,14 @@ int main(int argc, char *argv[])
 			for (qp_index = 0; qp_index < user_param.num_of_qps; qp_index++) {
 				if (ibv_detach_mcast(ctx.qp[qp_index], &mgid, 0)) {
 					perror("error");
-					fprintf(stderr, "Couldn't leave multicast group\n");
+					log_ebt( "Couldn't leave multicast group\n");
 				}
 			}
 		}
 	}
 
 	if (destroy_ctx(&ctx, &user_param)) {
-		fprintf(stderr, "Failed to destroy_ctx\n");
+		log_ebt( "Failed to destroy_ctx\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		return FAILURE;
 	}
@@ -415,7 +416,7 @@ int main(int argc, char *argv[])
 
 	/* limit verifier */
 	if (!user_param.is_bw_limit_passed && (user_param.is_limit_bw == ON ) ) {
-		fprintf(stderr, "Error: BW result is below bw limit\n");
+		log_ebt( "Error: BW result is below bw limit\n");
 		return FAILURE;
 	}
 

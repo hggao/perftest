@@ -26,6 +26,7 @@
 #include <infiniband/efadv.h>
 #endif
 
+#include "perftest_logging.h"
 #include "perftest_resources.h"
 #include "raw_ethernet_resources.h"
 
@@ -86,7 +87,7 @@ static int pp_init_gpu(struct pingpong_context *ctx, int cuda_device_id)
 		return 1;
 	}
 	if (cuda_device_id >= deviceCount) {
-		fprintf(stderr, "No such device ID (%d) exists in system\n", cuda_device_id);
+		log_ebt("No such device ID (%d) exists in system\n", cuda_device_id);
 		return 1;
 	}
 
@@ -234,7 +235,7 @@ int set_valid_dek(char *dst, struct perftest_parameters *user_param)
 	ALLOCATE(execute, char, size);
 
 	if(execute == NULL) {
-		fprintf(stderr, "Can not open the data_encryption_key file\n");
+		log_ebt("Can not open the data_encryption_key file\n");
 		return FAILURE;
 	}
 
@@ -245,7 +246,7 @@ int set_valid_dek(char *dst, struct perftest_parameters *user_param)
 	strcat(execute, file_path);
 
 	if(system(execute)) {
-		fprintf(stderr, "Execution of %s has failed\n", execute);
+		log_ebt("Execution of %s has failed\n", execute);
 		free(execute);
 		return FAILURE;
 	}
@@ -255,14 +256,14 @@ int set_valid_dek(char *dst, struct perftest_parameters *user_param)
 	dek_file = fopen(file_path, "r");
 
 	if(dek_file == NULL) {
-		fprintf(stderr, "Can not open the data_encryption_key file\n");
+		log_ebt("Can not open the data_encryption_key file\n");
 		return FAILURE;
 	}
 
 	while((read = getline(&line, &len, dek_file)) != -1) {
 
 		if(index >= AES_XTS_DEK_SIZE) {
-			fprintf(stderr, "Invalid data_encryption_key file\n");
+			log_ebt("Invalid data_encryption_key file\n");
 			fclose(dek_file);
 			return FAILURE;
 		}
@@ -291,14 +292,14 @@ int set_valid_cred(char *dst, struct perftest_parameters *user_param)
 	cred = fopen(user_param->credentials_path, "r");
 
 	if(cred == NULL) {
-		fprintf(stderr, "Can not open the credentials file\n");
+		log_ebt("Can not open the credentials file\n");
 		return FAILURE;
 	}
 
 	while((read = getline(&line, &len, cred)) != -1) {
 
 		if(index >= AES_XTS_CREDENTIALS_SIZE) {
-			fprintf(stderr, "Invalid credentials file\n");
+			log_ebt("Invalid credentials file\n");
 			return FAILURE;
 		}
 
@@ -509,7 +510,7 @@ static inline int _new_post_send(struct pingpong_context *ctx,
 				wr->wr.atomic.swap);
 			break;
 		default:
-			fprintf(stderr, "Post send failed: unknown operation code.\n");
+			log_ebt("Post send failed: unknown operation code.\n");
 		}
 		#ifdef HAVE_MLX5DV
 		if (qpt == IBV_QPT_DRIVER && connection_type == DC)
@@ -848,7 +849,7 @@ static int ctx_xrcd_create(struct pingpong_context *ctx,struct perftest_paramete
 
 	ctx->fd = open(tmp_file_name, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP);
 	if (ctx->fd < 0) {
-		fprintf(stderr,"Error opening file %s errno: %s", tmp_file_name,strerror(errno));
+		log_ebt("Error opening file %s errno: %s", tmp_file_name,strerror(errno));
 		return FAILURE;
 	}
 
@@ -858,7 +859,7 @@ static int ctx_xrcd_create(struct pingpong_context *ctx,struct perftest_paramete
 
 	ctx->xrc_domain = ibv_open_xrcd(ctx->context,&xrcd_init_attr);
 	if (ctx->xrc_domain == NULL) {
-		fprintf(stderr,"Error opening XRC domain\n");
+		log_ebt("Error opening XRC domain\n");
 		return FAILURE;
 	}
 	return 0;
@@ -888,7 +889,7 @@ static int ctx_xrc_srq_create(struct pingpong_context *ctx,
 	srq_init_attr.pd = ctx->pd;
 	ctx->srq = ibv_create_srq_ex(ctx->context, &srq_init_attr);
 	if (ctx->srq == NULL) {
-		fprintf(stderr, "Couldn't open XRC SRQ\n");
+		log_ebt("Couldn't open XRC SRQ\n");
 		return FAILURE;
 	}
 
@@ -983,7 +984,7 @@ int check_add_port(char **service,int port,
 	number = getaddrinfo(servername,*service,hints,res);
 
 	if (number < 0) {
-		fprintf(stderr, "%s for %s:%d\n", gai_strerror(number), servername, port);
+		log_ebt("%s for %s:%d\n", gai_strerror(number), servername, port);
 		return FAILURE;
 	}
 
@@ -1002,12 +1003,12 @@ int create_rdma_resources(struct pingpong_context *ctx,
 
 	ctx->cm_channel = rdma_create_event_channel();
 	if (ctx->cm_channel == NULL) {
-		fprintf(stderr, " rdma_create_event_channel failed\n");
+		log_ebt(" rdma_create_event_channel failed\n");
 		return FAILURE;
 	}
 
 	if (rdma_create_id(ctx->cm_channel,cm_id,NULL,port_space)) {
-		fprintf(stderr,"rdma_create_id failed\n");
+		log_ebt("rdma_create_id failed\n");
 		return FAILURE;
 	}
 
@@ -1042,20 +1043,20 @@ struct ibv_device* ctx_find_dev(char **ib_devname)
 	dev_list = ibv_get_device_list(&num_of_device);
 
 	if (num_of_device <= 0) {
-		fprintf(stderr," Did not detect devices \n");
-		fprintf(stderr," If device exists, check if driver is up\n");
+		log_err(" Did not detect devices \n");
+		log_ebt(" If device exists, check if driver is up\n");
 		return NULL;
 	}
 
 	if (!ib_devname) {
-		fprintf(stderr," Internal error, existing.\n");
+		log_ebt(" Internal error, existing.\n");
 		return NULL;
 	}
 
 	if (!*ib_devname) {
 		ib_dev = dev_list[0];
 		if (!ib_dev) {
-			fprintf(stderr, "No IB devices found\n");
+			log_ebt("No IB devices found\n");
 			exit (1);
 		}
 	} else {
@@ -1063,7 +1064,7 @@ struct ibv_device* ctx_find_dev(char **ib_devname)
 			if (!strcmp(ibv_get_device_name(ib_dev), *ib_devname))
 				break;
 		if (!ib_dev) {
-			fprintf(stderr, "IB device %s not found\n", *ib_devname);
+			log_ebt("IB device %s not found\n", *ib_devname);
 			return NULL;
 		}
 	}
@@ -1086,21 +1087,21 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
 		attr.flags = MLX5DV_CONTEXT_FLAGS_DEVX;
 
 		if(set_valid_cred(login_attr.credential, user_param)){
-			fprintf(stderr, "Couldn't set credentials\n");
+			log_ebt("Couldn't set credentials\n");
 			return NULL;
 		}
 
 		context = mlx5dv_open_device(ib_dev, &attr);
 
 		if(!context){
-			fprintf(stderr, "Couldn't get context for the device\n");
+			log_ebt("Couldn't get context for the device\n");
 			return NULL;
 		}
 
 		int ret = mlx5dv_crypto_login(context, &login_attr);
 
 		if (ret) {
-			fprintf(stderr,"Couldn't login. err=%d.\n", ret);
+			log_ebt("Couldn't login. err=%d.\n", ret);
 			return NULL;
 		}
 
@@ -1111,7 +1112,7 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
 	context = ibv_open_device(ib_dev);
 
 	if (!context) {
-		fprintf(stderr, " Couldn't get context for the device\n");
+		log_ebt(" Couldn't get context for the device\n");
 		return NULL;
 	}
 
@@ -1235,7 +1236,7 @@ int destroy_ctx(struct pingpong_context *ctx,
 	if (user_param->work_rdma_cm == ON) {
 		rc = rdma_cm_disconnect_nodes(ctx, user_param);
 		if (rc) {
-			fprintf(stderr, "Failed to disconnect RDMA CM nodes.\n");
+			log_ebt("Failed to disconnect RDMA CM nodes.\n");
 		}
 		rdma_cm_destroy_qps(ctx, user_param);
 	}
@@ -1264,13 +1265,13 @@ int destroy_ctx(struct pingpong_context *ctx,
 				(user_param->tst == LAT || user_param->machine == CLIENT || user_param->duplex)) ||
 				(user_param->connection_type == SRD && user_param->verb == READ)) {
 			if (ibv_destroy_ah(ctx->ah[i])) {
-				fprintf(stderr, "Failed to destroy AH\n");
+				log_ebt("Failed to destroy AH\n");
 				test_result = 1;
 			}
 		}
 		if (user_param->work_rdma_cm == OFF) {
 			if (ibv_destroy_qp(ctx->qp[i])) {
-				fprintf(stderr, "Couldn't destroy QP - %s\n", strerror(errno));
+				log_ebt("Couldn't destroy QP - %s\n", strerror(errno));
 				test_result = 1;
 			}
 		}
@@ -1279,19 +1280,19 @@ int destroy_ctx(struct pingpong_context *ctx,
 	if (user_param->use_rss) {
 		if (user_param->connection_type == UD && (user_param->tst == LAT || user_param->machine == CLIENT || user_param->duplex)) {
 			if (ibv_destroy_ah(ctx->ah[0])) {
-				fprintf(stderr, "Failed to destroy AH\n");
+				log_ebt("Failed to destroy AH\n");
 				test_result = 1;
 			}
 		}
 
 		if (ibv_destroy_qp(ctx->qp[0])) {
-			fprintf(stderr, "Couldn't destroy QP - %s\n", strerror(errno));
+			log_ebt("Couldn't destroy QP - %s\n", strerror(errno));
 			test_result = 1;
 		}
 	}
 	if (user_param->srq_exists) {
 		if (ibv_destroy_srq(ctx->srq)) {
-			fprintf(stderr, "Couldn't destroy SRQ\n");
+			log_ebt("Couldn't destroy SRQ\n");
 			test_result = 1;
 		}
 	}
@@ -1300,12 +1301,12 @@ int destroy_ctx(struct pingpong_context *ctx,
 	if (user_param->use_xrc) {
 
 		if (ibv_close_xrcd(ctx->xrc_domain)) {
-			fprintf(stderr, "Couldn't destroy XRC domain\n");
+			log_ebt("Couldn't destroy XRC domain\n");
 			test_result = 1;
 		}
 
 		if (ctx->fd >= 0 && close(ctx->fd)) {
-			fprintf(stderr, "Couldn't close the file for the XRC Domain\n");
+			log_ebt("Couldn't close the file for the XRC Domain\n");
 			test_result = 1;
 		}
 
@@ -1313,14 +1314,14 @@ int destroy_ctx(struct pingpong_context *ctx,
 	#endif
 
 	if (ibv_destroy_cq(ctx->send_cq)) {
-		fprintf(stderr, "Failed to destroy CQ - %s\n", strerror(errno));
+		log_ebt("Failed to destroy CQ - %s\n", strerror(errno));
 		test_result = 1;
 	}
 
 	if (user_param->verb == SEND && (user_param->tst == LAT || user_param->machine == SERVER || user_param->duplex || (ctx->channel)) ) {
 		if (!(user_param->connection_type == DC && user_param->machine == SERVER)) {
 			if (ibv_destroy_cq(ctx->recv_cq)) {
-				fprintf(stderr, "Failed to destroy CQ - %s\n", strerror(errno));
+				log_ebt("Failed to destroy CQ - %s\n", strerror(errno));
 				test_result = 1;
 			}
 		}
@@ -1328,14 +1329,14 @@ int destroy_ctx(struct pingpong_context *ctx,
 
 	for (i = 0; i < dereg_counter; i++) {
 		if (ibv_dereg_mr(ctx->mr[i])) {
-			fprintf(stderr, "Failed to deregister MR #%d\n", i+1);
+			log_ebt("Failed to deregister MR #%d\n", i+1);
 			test_result = 1;
 		}
 	}
 
 	if (user_param->verb == SEND && user_param->work_rdma_cm == ON && ctx->send_rcredit) {
 		if (ibv_dereg_mr(ctx->credit_mr)) {
-			fprintf(stderr, "Failed to deregister send credit MR\n");
+			log_ebt("Failed to deregister send credit MR\n");
 			test_result = 1;
 		}
 		free(ctx->ctrl_buf);
@@ -1347,31 +1348,31 @@ int destroy_ctx(struct pingpong_context *ctx,
 	if(user_param->aes_xts){
 		for(i = 0; i < user_param->data_enc_keys_number; i++) {
 			if (mlx5dv_dek_destroy(ctx->dek[i]))
-				fprintf(stderr, "Failed to destroy data encryption key.\n");
+				log_ebt("Failed to destroy data encryption key.\n");
 		}
 
 		for(i = 0; i < user_param->num_of_qps; i++) {
 			if (mlx5dv_destroy_mkey(ctx->mkey[i]))
-				fprintf(stderr, "Failed to destroy MKey.\n");
+				log_ebt("Failed to destroy MKey.\n");
 		}
 	}
 	#endif
 
 	if (ibv_dealloc_pd(ctx->pd)) {
-		fprintf(stderr, "Failed to deallocate PD - %s\n", strerror(errno));
+		log_ebt("Failed to deallocate PD - %s\n", strerror(errno));
 		test_result = 1;
 	}
 
 	if (ctx->channel) {
 		if (ibv_destroy_comp_channel(ctx->channel)) {
-			fprintf(stderr, "Failed to close event channel\n");
+			log_ebt("Failed to close event channel\n");
 			test_result = 1;
 		}
 	}
 	if (user_param->use_rdma_cm == OFF) {
 
 		if (ibv_close_device(ctx->context)) {
-			fprintf(stderr, "Failed to close device context\n");
+			log_ebt("Failed to close device context\n");
 			test_result = 1;
 		}
 	}
@@ -1479,13 +1480,13 @@ static int check_odp_support(struct pingpong_context *ctx)
 	int ret = ibv_query_device_ex(ctx->context, NULL, &dattr);
 
 	if (ret) {
-		fprintf(stderr, " Couldn't query device for on-demand paging capabilities.\n");
+		log_ebt(" Couldn't query device for on-demand paging capabilities.\n");
 		return 0;
 	} else if (!(dattr.odp_caps.per_transport_caps.rc_odp_caps & odp_support_send)) {
-		fprintf(stderr, " Send is not supported for RC transport.\n");
+		log_ebt(" Send is not supported for RC transport.\n");
 		return 0;
 	} else if (!(dattr.odp_caps.per_transport_caps.rc_odp_caps & odp_support_recv)) {
-		fprintf(stderr, " Receive is not supported for RC transport.\n");
+		log_ebt(" Receive is not supported for RC transport.\n");
 		return 0;
 	}
 	return 1;
@@ -1502,7 +1503,7 @@ int create_reg_cqs(struct pingpong_context *ctx,
 	ctx->send_cq = ibv_create_cq(ctx->context,tx_buffer_depth *
 					user_param->num_of_qps, NULL, ctx->channel, user_param->eq_num);
 	if (!ctx->send_cq) {
-		fprintf(stderr, "Couldn't create CQ\n");
+		log_ebt("Couldn't create CQ\n");
 		return FAILURE;
 	}
 
@@ -1510,7 +1511,7 @@ int create_reg_cqs(struct pingpong_context *ctx,
 		ctx->recv_cq = ibv_create_cq(ctx->context,user_param->rx_depth *
 						user_param->num_of_qps, NULL, ctx->channel, user_param->eq_num);
 		if (!ctx->recv_cq) {
-			fprintf(stderr, "Couldn't create a receiver CQ\n");
+			log_ebt("Couldn't create a receiver CQ\n");
 			return FAILURE;
 		}
 	}
@@ -1622,7 +1623,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 		if (pp_init_mmap(ctx, ctx->buff_size, user_param->mmap_file,
 				 user_param->mmap_offset))
 		{
-			fprintf(stderr, "Couldn't allocate work buf.\n");
+			log_ebt("Couldn't allocate work buf.\n");
 			return FAILURE;
 		}
 
@@ -1634,7 +1635,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 			#else
 			if (user_param->use_hugepages) {
 				if (alloc_hugepage_region(ctx, qp_index) != SUCCESS){
-					fprintf(stderr, "Failed to allocate hugepage region.\n");
+					log_ebt("Failed to allocate hugepage region.\n");
 					return FAILURE;
 				}
 				memset(ctx->buf[qp_index], 0, ctx->buff_size);
@@ -1643,7 +1644,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 			}
 			#endif
 			if (!ctx->buf[qp_index]) {
-				fprintf(stderr, "Couldn't allocate work buf.\n");
+				log_ebt("Couldn't allocate work buf.\n");
 				return FAILURE;
 			}
 
@@ -1674,7 +1675,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 	ctx->mr[qp_index] = ibv_reg_mr(ctx->pd, ctx->buf[qp_index], ctx->buff_size, flags);
 
 	if (!ctx->mr[qp_index]) {
-		fprintf(stderr, "Couldn't allocate MR\n");
+		log_ebt("Couldn't allocate MR\n");
 		return FAILURE;
 	}
 
@@ -1709,7 +1710,7 @@ int create_mr(struct pingpong_context *ctx, struct perftest_parameters *user_par
 
 	/* create first MR */
 	if (create_single_mr(ctx, user_param, 0)) {
-		fprintf(stderr, "failed to create mr\n");
+		log_ebt("failed to create mr\n");
 		return 1;
 	}
 
@@ -1717,7 +1718,7 @@ int create_mr(struct pingpong_context *ctx, struct perftest_parameters *user_par
 	for (i = 1; i < user_param->num_of_qps; i++) {
 		if (user_param->mr_per_qp) {
 			if (create_single_mr(ctx, user_param, i)) {
-				fprintf(stderr, "failed to create mr\n");
+				log_ebt("failed to create mr\n");
 				return 1;
 			}
 		} else {
@@ -1749,20 +1750,20 @@ int alloc_hugepage_region (struct pingpong_context *ctx, int qp_index)
 	ctx->huge_shmid = shmget(IPC_PRIVATE, buf_size,
 				 SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
 	if (ctx->huge_shmid < 0) {
-		fprintf(stderr, "Failed to allocate hugepages. Please configure hugepages\n");
+		log_ebt("Failed to allocate hugepages. Please configure hugepages\n");
 		return FAILURE;
 	}
 
 	/* attach shared memory */
 	ctx->buf[qp_index] = (void *) shmat(ctx->huge_shmid, SHMAT_ADDR, SHMAT_FLAGS);
 	if (ctx->buf == (void *) -1) {
-		fprintf(stderr, "Failed to attach shared memory region\n");
+		log_ebt("Failed to attach shared memory region\n");
 		return FAILURE;
 	}
 
 	/* Mark shmem for removal */
 	if (shmctl(ctx->huge_shmid, IPC_RMID, 0) != 0) {
-		fprintf(stderr, "Failed to mark shm for removal\n");
+		log_ebt("Failed to mark shm for removal\n");
 		return FAILURE;
 	}
 
@@ -1776,8 +1777,8 @@ int verify_params_with_device_context(struct ibv_context *context,
 	enum ctx_device current_dev = ib_dev_name(context);
 	if(user_param->use_event) {
 		if(user_param->eq_num > context->num_comp_vectors) {
-			fprintf(stderr, " Completion vector specified is invalid\n");
-			fprintf(stderr, " Max completion vector = %d\n",
+			log_ebt( " Completion vector specified is invalid\n");
+			log_ebt(" Max completion vector = %d\n",
 				context->num_comp_vectors - 1);
 			return FAILURE;
 		}
@@ -1820,21 +1821,21 @@ static int verify_ooo_settings(struct pingpong_context *ctx,
 
 	if (user_param->connection_type == RC) {
 		if (attr.ooo_caps.rc_caps == 0) {
-			fprintf(stderr, " OOO unsupported by HCA on RC QP\n");
+			log_ebt(" OOO unsupported by HCA on RC QP\n");
 			return FAILURE;
 		} else {
 			return SUCCESS;
 		}
 	} else if (user_param->connection_type == XRC) {
 		if (attr.ooo_caps.xrc_caps == 0) {
-			fprintf(stderr, " OOO unsupported by HCA on XRC QP\n");
+			log_ebt(" OOO unsupported by HCA on XRC QP\n");
 			return FAILURE;
 		} else {
 			return SUCCESS;
 		}
 	} else if (user_param->connection_type == UD) {
 		if (attr.ooo_caps.ud_caps == 0) {
-			fprintf(stderr, " OOO unsupported by HCA on UD QP\n");
+			log_ebt(" OOO unsupported by HCA on UD QP\n");
 			return FAILURE;
 		} else {
 			return SUCCESS;
@@ -1843,7 +1844,7 @@ static int verify_ooo_settings(struct pingpong_context *ctx,
 	#if HAVE_OOO_ATTR
 	} else if (user_param->connection_type == UC) {
 		if (attr.ooo_caps.uc_caps == 0) {
-			fprintf(stderr, " OOO unsupported by HCA on UC QP\n");
+			log_ebt(" OOO unsupported by HCA on UC QP\n");
 			return FAILURE;
 		} else {
 			return SUCCESS;
@@ -1862,7 +1863,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	#if defined HAVE_OOO_ATTR
 	if (user_param->use_ooo) {
 		if (verify_ooo_settings(ctx, user_param) != SUCCESS) {
-			fprintf(stderr, "Incompatible OOO settings\n");
+			log_ebt("Incompatible OOO settings\n");
 			return FAILURE;
 		}
 	}
@@ -1873,7 +1874,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	if (user_param->use_event) {
 		ctx->channel = ibv_create_comp_channel(ctx->context);
 		if (!ctx->channel) {
-			fprintf(stderr, "Couldn't create completion channel\n");
+			log_ebt("Couldn't create completion channel\n");
 			return FAILURE;
 		}
 	}
@@ -1881,7 +1882,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	/* Allocating the Protection domain. */
 	ctx->pd = ibv_alloc_pd(ctx->context);
 	if (!ctx->pd) {
-		fprintf(stderr, "Couldn't allocate PD\n");
+		log_ebt("Couldn't allocate PD\n");
 		return FAILURE;
 	}
 	#ifdef HAVE_AES_XTS
@@ -1903,14 +1904,14 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 		for(i = 0; i < user_param->data_enc_keys_number; i++) {
 
 			if (set_valid_dek(dek_attr.key, user_param)) {
-				fprintf(stderr, "Failed to set dek\n");
+				log_ebt("Failed to set dek\n");
 				return FAILURE;
 			}
 
 			ctx->dek[i] = mlx5dv_dek_create(ctx->context, &dek_attr);
 
 			if(!ctx->dek[i]) {
-				fprintf(stderr, "Failed to create dek\n");
+				log_ebt("Failed to create dek\n");
 				return FAILURE;
 			}
 
@@ -1920,7 +1921,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 			ctx->mkey[i] = mlx5dv_create_mkey(&mkey_init_attr);
 
 			if(!ctx->mkey[i]) {
-				fprintf(stderr, "Failed to create mkey\n");
+				log_ebt("Failed to create mkey\n");
 				return FAILURE;
 			}
 		}
@@ -1942,12 +1943,12 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 			printf("Finding PCIe BUS %s\n", user_param->cuda_device_bus_id);
 			err = cuDeviceGetByPCIBusId (&user_param->cuda_device_id, user_param->cuda_device_bus_id);
 			if (err != 0) {
-				fprintf(stderr, "We have an error from cuDeviceGetByPCIBusId: %d\n", err);
+				log_ebt("We have an error from cuDeviceGetByPCIBusId: %d\n", err);
 			}
 			printf("Picking GPU number %d\n", user_param->cuda_device_id);
 		}
 		if (pp_init_gpu(ctx, user_param->cuda_device_id)) {
-			fprintf(stderr, "Couldn't init GPU context\n");
+			log_ebt("Couldn't init GPU context\n");
 			return FAILURE;
 		}
 	}
@@ -1956,19 +1957,19 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	#ifdef HAVE_ROCM
 	if (user_param->use_rocm) {
 		if (pp_init_rocm(ctx, user_param->rocm_device_id)) {
-			fprintf(stderr, "Couldn't initialize ROCm device\n");
+			log_ebt("Couldn't initialize ROCm device\n");
 			return FAILURE;
 		}
 	}
 	#endif
 
 	if (create_mr(ctx, user_param)) {
-		fprintf(stderr, "Failed to create MR\n");
+		log_ebt("Failed to create MR\n");
 		return FAILURE;
 	}
 
 	if (create_cqs(ctx, user_param)) {
-		fprintf(stderr, "Failed to create CQs\n");
+		log_ebt("Failed to create CQs\n");
 		return FAILURE;
 
 	}
@@ -1977,12 +1978,12 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	if (user_param->use_xrc) {
 
 		if (ctx_xrcd_create(ctx,user_param)) {
-			fprintf(stderr, "Couldn't create XRC resources\n");
+			log_ebt("Couldn't create XRC resources\n");
 			return FAILURE;
 		}
 
 		if (ctx_xrc_srq_create(ctx,user_param)) {
-			fprintf(stderr, "Couldn't create SRQ XRC resources\n");
+			log_ebt("Couldn't create SRQ XRC resources\n");
 			return FAILURE;
 		}
 	}
@@ -2003,7 +2004,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 		attr.srq_type = IBV_SRQT_BASIC;
 		ctx->srq = ibv_create_srq_ex(ctx->context, &attr);
 		if (!ctx->srq)  {
-			fprintf(stderr, "Couldn't create SRQ\n");
+			log_ebt("Couldn't create SRQ\n");
 			return FAILURE;
 		}
 	}
@@ -2021,7 +2022,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 		};
 		ctx->srq = ibv_create_srq(ctx->pd, &attr);
 		if (!ctx->srq)  {
-			fprintf(stderr, "Couldn't create SRQ\n");
+			log_ebt("Couldn't create SRQ\n");
 			return FAILURE;
 		}
 	}
@@ -2036,7 +2037,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 
 	for (i=0; i < user_param->num_of_qps; i++) {
 		if (create_qp_main(ctx, user_param, i, num_of_qps)) {
-			fprintf(stderr, "Failed to create QP.\n");
+			log_ebt("Failed to create QP.\n");
 			return FAILURE;
 		}
 
@@ -2056,7 +2057,7 @@ int modify_qp_to_init(struct pingpong_context *ctx,
 {
 	if (ctx_modify_qp_to_init(ctx->qp[qp_index], user_param,
 		qp_index)) {
-		fprintf(stderr, "Failed to modify QP to INIT\n");
+		log_ebt("Failed to modify QP to INIT\n");
 		return FAILURE;
 	}
 
@@ -2079,7 +2080,7 @@ int create_reg_qp_main(struct pingpong_context *ctx,
 	}
 
 	if (ctx->qp[i] == NULL) {
-		fprintf(stderr, "Unable to create QP.\n");
+		log_ebt("Unable to create QP.\n");
 		return FAILURE;
 	}
 	#ifdef HAVE_IBV_WR_API
@@ -2181,7 +2182,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		#ifdef HAVE_SRD
 		case SRD: attr.qp_type = IBV_QPT_DRIVER; break;
 		#endif
-		default:  fprintf(stderr, "Unknown connection type \n");
+		default:  log_ebt("Unknown connection type \n");
 			  return NULL;
 	}
 
@@ -2223,7 +2224,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		{
 			if (rdma_create_qp_ex(ctx->cm_id, &attr_ex))
 			{
-				fprintf(stderr, "Couldn't create rdma new QP - %s\n", strerror(errno));
+				log_ebt("Couldn't create rdma new QP - %s\n", strerror(errno));
 			}
 			else
 			{
@@ -2234,7 +2235,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		#endif
 			if (rdma_create_qp(ctx->cm_id, ctx->pd, &attr))
 			{
-				fprintf(stderr, "Couldn't create rdma old QP - %s\n", strerror(errno));
+				log_ebt("Couldn't create rdma old QP - %s\n", strerror(errno));
 			}
 			else
 			{
@@ -2303,8 +2304,8 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 	}
 
 	if (qp == NULL && errno == ENOMEM) {
-		fprintf(stderr, "Requested QP size might be too big. Try reducing TX depth and/or inline size.\n");
-		fprintf(stderr, "Current TX depth is %d and inline size is %d .\n", user_param->tx_depth, user_param->inline_size);
+		log_err( "Requested QP size might be too big. Try reducing TX depth and/or inline size.\n");
+		log_ebt("Current TX depth is %d and inline size is %d .\n", user_param->tx_depth, user_param->inline_size);
 	}
 
 	if (user_param->inline_size > attr.cap.max_inline_data) {
@@ -2378,7 +2379,7 @@ int ctx_modify_qp_to_init(struct ibv_qp *qp,struct perftest_parameters *user_par
 	ret = ibv_modify_qp(qp, &attr, flags);
 
 	if (ret) {
-		fprintf(stderr, "Failed to modify QP to INIT, ret=%d\n",ret);
+		log_ebt("Failed to modify QP to INIT, ret=%d\n",ret);
 		return 1;
 	}
 	return 0;
@@ -2548,7 +2549,7 @@ int ctx_connect(struct pingpong_context *ctx,
 		#if defined (HAVE_PACKET_PACING)
 		if (user_param->rate_limit_type == PP_RATE_LIMIT) {
 			if (check_packet_pacing_support(ctx) == FAILURE) {
-				fprintf(stderr, "Packet Pacing isn't supported.\n");
+				log_ebt("Packet Pacing isn't supported.\n");
 				return FAILURE;
 			}
 		}
@@ -2559,7 +2560,7 @@ int ctx_connect(struct pingpong_context *ctx,
 
 
 		if(ctx_modify_qp_to_rtr(ctx->qp[i], &attr, user_param, &dest[xrc_offset + i], &my_dest[i], i)) {
-			fprintf(stderr, "Failed to modify QP %d to RTR\n",ctx->qp[i]->qp_num);
+			log_ebt("Failed to modify QP %d to RTR\n",ctx->qp[i]->qp_num);
 			return FAILURE;
 		}
 		if (user_param->connection_type == DC) {
@@ -2570,7 +2571,7 @@ int ctx_connect(struct pingpong_context *ctx,
 		}
 		if (user_param->tst == LAT || user_param->machine == CLIENT || user_param->duplex) {
 			if(ctx_modify_qp_to_rts(ctx->qp[i], &attr, user_param, &dest[xrc_offset + i], &my_dest[i])) {
-				fprintf(stderr, "Failed to modify QP to RTS\n");
+				log_ebt("Failed to modify QP to RTS\n");
 				return FAILURE;
 			}
 		}
@@ -2582,7 +2583,7 @@ int ctx_connect(struct pingpong_context *ctx,
 			ctx->ah[i] = ibv_create_ah(ctx->pd,&(attr.ah_attr));
 
 			if (!ctx->ah[i]) {
-				fprintf(stderr, "Failed to create AH\n");
+				log_ebt("Failed to create AH\n");
 				return FAILURE;
 			}
 		}
@@ -2597,7 +2598,7 @@ int ctx_connect(struct pingpong_context *ctx,
 
 			err = ibv_query_qp(ctx->qp[i], &qp_attr, IBV_QP_AV, &init_attr);
 			if (err)
-				fprintf(stderr, "ibv_query_qp failed to get ah_attr\n");
+				log_ebt("ibv_query_qp failed to get ah_attr\n");
 			else
 				qp_static_rate = (int)(qp_attr.ah_attr.static_rate);
 
@@ -2607,9 +2608,9 @@ int ctx_connect(struct pingpong_context *ctx,
 			   user_param->link_type != IBV_LINK_LAYER_INFINIBAND) {
 				if(!user_param->is_rate_limit_type) {
 					user_param->rate_limit_type = SW_RATE_LIMIT;
-					fprintf(stderr, "\x1b[31mThe QP failed to accept HW rate limit, providing SW rate limit \x1b[0m\n");
+					log_ebt("\x1b[31mThe QP failed to accept HW rate limit, providing SW rate limit \x1b[0m\n");
 				} else {
-					fprintf(stderr, "\x1b[31mThe QP failed to accept HW rate limit  \x1b[0m\n");
+					log_ebt("\x1b[31mThe QP failed to accept HW rate limit  \x1b[0m\n");
 					return FAILURE;
 				}
 			}
@@ -2684,7 +2685,7 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				}
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on DC. \n");
+				log_ebt("The post send properties are not supported on DC. \n");
 		}
 		break;
 	case RC:
@@ -2728,7 +2729,7 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				}
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on RC. \n");
+				log_ebt("The post send properties are not supported on RC. \n");
 		}
 		break;
 	case UD:
@@ -2742,7 +2743,7 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				}
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on UD. \n");
+				log_ebt("The post send properties are not supported on UD. \n");
 		}
 		break;
 	case UC:
@@ -2764,7 +2765,7 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				}
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on UD. \n");
+				log_ebt("The post send properties are not supported on UD. \n");
 		}
 		break;
 	case XRC:
@@ -2797,7 +2798,7 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				}
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on RC. \n");
+				log_ebt("The post send properties are not supported on RC. \n");
 		}
 		break;
 	case SRD:
@@ -2814,11 +2815,11 @@ static void ctx_post_send_work_request_func_pointer(struct pingpong_context *ctx
 				ctx->new_post_send_work_request_func_pointer = &new_post_read_sge_srd;
 				break;
 			default:
-				fprintf(stderr, "The post send properties are not supported on SRD.\n");
+				log_ebt("The post send properties are not supported on SRD.\n");
 		}
 		break;
 	default:
-		fprintf(stderr, "Unsupported transport. \n");
+		log_ebt("Unsupported transport. \n");
 	}
 }
 #endif
@@ -3042,14 +3043,14 @@ int ctx_set_recv_wqes(struct pingpong_context *ctx,struct perftest_parameters *u
 			if (user_param->use_srq) {
 
 				if (ibv_post_srq_recv(ctx->srq,&ctx->rwr[i * user_param->recv_post_list], &bad_wr_recv)) {
-					fprintf(stderr, "Couldn't post recv SRQ = %d: counter=%d\n",i,j);
+					log_ebt("Couldn't post recv SRQ = %d: counter=%d\n",i,j);
 					return 1;
 				}
 
 			} else {
 
 				if (ibv_post_recv(ctx->qp[i],&ctx->rwr[i * user_param->recv_post_list],&bad_wr_recv)) {
-					fprintf(stderr, "Couldn't post recv Qp = %d: counter=%d\n",i,j);
+					log_ebt("Couldn't post recv Qp = %d: counter=%d\n",i,j);
 					return 1;
 				}
 			}
@@ -3084,7 +3085,7 @@ int ctx_alloc_credit(struct pingpong_context *ctx,
 
 	ctx->credit_mr = ibv_reg_mr(ctx->pd,ctx->ctrl_buf,buf_size,flags);
 	if (!ctx->credit_mr) {
-		fprintf(stderr, "Couldn't allocate MR\n");
+		log_ebt("Couldn't allocate MR\n");
 		return FAILURE;
 	}
 	for (i = 0; i < user_param->num_of_qps; i++) {
@@ -3137,7 +3138,7 @@ static int clean_scq_credit(int send_cnt,struct pingpong_context *ctx,struct per
 		if (sne > 0) {
 			for (i = 0; i < sne; i++) {
 				if (swc[i].status != IBV_WC_SUCCESS) {
-					fprintf(stderr, "Poll send CQ error status=%u qp %d\n",
+					log_ebt("Poll send CQ error status=%u qp %d\n",
 							swc[i].status,(int)swc[i].wr_id);
 					return_value = FAILURE;
 					goto cleaning;
@@ -3146,7 +3147,7 @@ static int clean_scq_credit(int send_cnt,struct pingpong_context *ctx,struct per
 			}
 
 		} else if (sne < 0) {
-			fprintf(stderr, "Poll send CQ to clean credit failed ne=%d\n",sne);
+			log_ebt("Poll send CQ to clean credit failed ne=%d\n",sne);
 			return_value = FAILURE;
 			goto cleaning;
 		}
@@ -3189,7 +3190,7 @@ int perform_warm_up(struct pingpong_context *ctx,struct perftest_parameters *use
 
 			err = post_send_method(ctx, index, user_param);
 			if (err) {
-				fprintf(stderr,"Couldn't post send during warm up: qp %d scnt=%d \n",index,warmindex);
+				log_ebt("Couldn't post send during warm up: qp %d scnt=%d \n",index,warmindex);
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -3274,8 +3275,8 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 	tot_iters = (uint64_t)user_param->iters*num_of_qps;
 
 	if (user_param->test_type == DURATION && user_param->state != START_STATE && user_param->margin > 0) {
-		fprintf(stderr, "Failed: margin is not long enough (taking samples before warmup ends)\n");
-		fprintf(stderr, "Please increase margin or decrease tx_depth\n");
+		log_err( "Failed: margin is not long enough (taking samples before warmup ends)\n");
+		log_ebt("Please increase margin or decrease tx_depth\n");
 		return_value = FAILURE;
 		goto cleaning;
 	}
@@ -3297,13 +3298,13 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 				rate_limit_pps = user_param->rate_limit;
 				break;
 			default:
-				fprintf(stderr, " Failed: Unknown rate limit units\n");
+				log_ebt(" Failed: Unknown rate limit units\n");
 				return_value = FAILURE;
 				goto cleaning;
 		}
 		cpu_mhz = get_cpu_mhz(user_param->cpu_freq_f);
 		if (cpu_mhz <= 0) {
-			fprintf(stderr, "Failed: couldn't acquire cpu frequency for rate limiter.\n");
+			log_ebt("Failed: couldn't acquire cpu frequency for rate limiter.\n");
 		}
 		number_of_bursts = rate_limit_pps / user_param->burst_size;
 		gap_time = 1000000 * (1.0 / number_of_bursts);
@@ -3348,7 +3349,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 
 				err = post_send_method(ctx, index, user_param);
 				if (err) {
-					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
+					log_ebt("Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -3400,7 +3401,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		if (totccnt < tot_iters || (user_param->test_type == DURATION &&  totccnt < totscnt)) {
 				if (user_param->use_event) {
 					if (ctx_notify_events(ctx->channel)) {
-						fprintf(stderr, "Couldn't request CQ notification\n");
+						log_ebt("Couldn't request CQ notification\n");
 						return_value = FAILURE;
 						goto cleaning;
 					}
@@ -3434,7 +3435,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					}
 
 				} else if (ne < 0) {
-					fprintf(stderr, "poll CQ failed %d\n",ne);
+					log_ebt("poll CQ failed %d\n",ne);
 					return_value = FAILURE;
 					goto cleaning;
 					}
@@ -3577,14 +3578,14 @@ int run_iter_bw_server(struct pingpong_context *ctx, struct perftest_parameters 
 							unused_recv_for_qp[wc_id] >= user_param->recv_post_list) {
 						if (user_param->use_srq) {
 							if (ibv_post_srq_recv(ctx->srq, &ctx->rwr[wc_id * user_param->recv_post_list], &bad_wr_recv)) {
-								fprintf(stderr, "Couldn't post recv SRQ. QP = %d: counter=%lu\n", wc_id,rcnt);
+								log_ebt("Couldn't post recv SRQ. QP = %d: counter=%lu\n", wc_id,rcnt);
 								return_value = FAILURE;
 								goto cleaning;
 							}
 
 						} else {
 							if (ibv_post_recv(ctx->qp[wc_id], &ctx->rwr[wc_id * user_param->recv_post_list], &bad_wr_recv)) {
-								fprintf(stderr, "Couldn't post recv Qp=%d rcnt=%ld\n",wc_id,rcnt_for_qp[wc_id]);
+								log_ebt("Couldn't post recv Qp=%d rcnt=%ld\n",wc_id,rcnt_for_qp[wc_id]);
 								return_value = 15;
 								goto cleaning;
 							}
@@ -3624,7 +3625,7 @@ int run_iter_bw_server(struct pingpong_context *ctx, struct perftest_parameters 
 								if (sne > 0) {
 									for (j = 0; j < sne; j++) {
 										if (swc[j].status != IBV_WC_SUCCESS) {
-											fprintf(stderr, "Poll send CQ error status=%u qp %d credit=%lu scredit=%lu\n",
+											log_ebt("Poll send CQ error status=%u qp %d credit=%lu scredit=%lu\n",
 													swc[j].status,(int)swc[j].wr_id,
 													rcnt_for_qp[swc[j].wr_id],scredit_for_qp[swc[j].wr_id]);
 											return_value = FAILURE;
@@ -3634,13 +3635,13 @@ int run_iter_bw_server(struct pingpong_context *ctx, struct perftest_parameters 
 										tot_scredit--;
 									}
 								} else if (sne < 0) {
-									fprintf(stderr, "Poll send CQ failed ne=%d\n",sne);
+									log_ebt("Poll send CQ failed ne=%d\n",sne);
 									return_value = FAILURE;
 									goto cleaning;
 								}
 							}
 							if (ibv_post_send(ctx->qp[wc_id],&ctx->ctrl_wr[wc_id],&bad_wr)) {
-								fprintf(stderr,"Couldn't post send qp %d credit = %lu\n",
+								log_ebt("Couldn't post send qp %d credit = %lu\n",
 										wc_id,rcnt_for_qp[wc_id]);
 								return_value = FAILURE;
 								goto cleaning;
@@ -3655,7 +3656,7 @@ int run_iter_bw_server(struct pingpong_context *ctx, struct perftest_parameters 
 		} while (ne > 0);
 
 		if (ne < 0) {
-			fprintf(stderr, "Poll Receive CQ failed %d\n", ne);
+			log_ebt("Poll Receive CQ failed %d\n", ne);
 			return_value = FAILURE;
 			goto cleaning;
 		}
@@ -3745,7 +3746,7 @@ int run_iter_bw_infinitely(struct pingpong_context *ctx,struct perftest_paramete
 
 				err = post_send_method(ctx, index, user_param);
 				if (err) {
-					fprintf(stderr,"Couldn't post send: %d scnt=%lu \n",index,ctx->scnt[index]);
+					log_ebt("Couldn't post send: %d scnt=%lu \n",index,ctx->scnt[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -3779,7 +3780,7 @@ int run_iter_bw_infinitely(struct pingpong_context *ctx,struct perftest_paramete
 				}
 
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n",ne);
+				log_ebt("poll CQ failed %d\n",ne);
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -3850,7 +3851,7 @@ int run_iter_bw_infinitely_server(struct pingpong_context *ctx, struct perftest_
 			for (i = 0; i < ne; i++) {
 
 				if (wc[i].status != IBV_WC_SUCCESS) {
-					fprintf(stderr,"A completion with Error in run_infinitely_bw_server function");
+					log_ebt("A completion with Error in run_infinitely_bw_server function");
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -3859,14 +3860,14 @@ int run_iter_bw_infinitely_server(struct pingpong_context *ctx, struct perftest_
 				if (unused_recv_for_qp[wc[i].wr_id] >= user_param->recv_post_list) {
 					if (user_param->use_srq) {
 						if (ibv_post_srq_recv(ctx->srq, &ctx->rwr[wc[i].wr_id * user_param->recv_post_list],&bad_wr_recv)) {
-							fprintf(stderr, "Couldn't post recv SRQ. QP = %d:\n",(int)wc[i].wr_id);
+							log_ebt("Couldn't post recv SRQ. QP = %d:\n",(int)wc[i].wr_id);
 							return_value = FAILURE;
 							goto cleaning;
 						}
 
 					} else {
 						if (ibv_post_recv(ctx->qp[wc[i].wr_id],&ctx->rwr[wc[i].wr_id * user_param->recv_post_list],&bad_wr_recv)) {
-							fprintf(stderr, "Couldn't post recv Qp=%d\n",(int)wc[i].wr_id);
+							log_ebt("Couldn't post recv Qp=%d\n",(int)wc[i].wr_id);
 							return_value = 15;
 							goto cleaning;
 						}
@@ -3889,7 +3890,7 @@ int run_iter_bw_infinitely_server(struct pingpong_context *ctx, struct perftest_
 							if (sne > 0) {
 								for (j = 0; j < sne; j++) {
 									if (swc[j].status != IBV_WC_SUCCESS) {
-										fprintf(stderr, "Poll send CQ error status=%u qp %d credit=%lu scredit=%lu\n",
+										log_ebt("Poll send CQ error status=%u qp %d credit=%lu scredit=%lu\n",
 												swc[j].status,(int)swc[j].wr_id,
 												rcnt_for_qp[swc[j].wr_id],ccnt_for_qp[swc[j].wr_id]);
 										return_value = FAILURE;
@@ -3899,13 +3900,13 @@ int run_iter_bw_infinitely_server(struct pingpong_context *ctx, struct perftest_
 								}
 
 							} else if (sne < 0) {
-								fprintf(stderr, "Poll send CQ failed ne=%d\n",sne);
+								log_ebt("Poll send CQ failed ne=%d\n",sne);
 								return_value = FAILURE;
 								goto cleaning;
 							}
 						}
 						if (ibv_post_send(ctx->qp[wc[i].wr_id],&ctx->ctrl_wr[wc[i].wr_id],&bad_wr)) {
-							fprintf(stderr,"Couldn't post send qp %d credit=%lu\n",
+							log_ebt("Couldn't post send qp %d credit=%lu\n",
 									(int)wc[i].wr_id,rcnt_for_qp[wc[i].wr_id]);
 							return_value = FAILURE;
 							goto cleaning;
@@ -3917,7 +3918,7 @@ int run_iter_bw_infinitely_server(struct pingpong_context *ctx, struct perftest_
 			}
 
 		} else if (ne < 0) {
-			fprintf(stderr, "Poll Receive CQ failed %d\n", ne);
+			log_ebt("Poll Receive CQ failed %d\n", ne);
 			return_value = FAILURE;
 			goto cleaning;
 		}
@@ -4042,7 +4043,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 				err = post_send_method(ctx, index, user_param);
 
 				if (err) {
-					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
+					log_ebt("Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -4066,7 +4067,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 		if (user_param->use_event) {
 
 			if (ctx_notify_events(ctx->channel)) {
-				fprintf(stderr,"Failed to notify events to CQ");
+				log_ebt("Failed to notify events to CQ");
 				return_value = FAILURE;
 				goto cleaning;
 			}
@@ -4112,7 +4113,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 						unused_recv_for_qp[wc[i].wr_id] >= user_param->recv_post_list) {
 					if (user_param->use_srq) {
 						if (ibv_post_srq_recv(ctx->srq, &ctx->rwr[wc[i].wr_id * user_param->recv_post_list],&bad_wr_recv)) {
-							fprintf(stderr, "Couldn't post recv SRQ. QP = %d: counter=%d\n",(int)wc[i].wr_id,(int)totrcnt);
+							log_ebt("Couldn't post recv SRQ. QP = %d: counter=%d\n",(int)wc[i].wr_id,(int)totrcnt);
 							return_value = FAILURE;
 							goto cleaning;
 						}
@@ -4120,7 +4121,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 					} else {
 
 						if (ibv_post_recv(ctx->qp[wc[i].wr_id],&ctx->rwr[wc[i].wr_id * user_param->recv_post_list],&bad_wr_recv)) {
-							fprintf(stderr, "Couldn't post recv Qp=%d rcnt=%lu\n",(int)wc[i].wr_id,rcnt_for_qp[wc[i].wr_id]);
+							log_ebt("Couldn't post recv Qp=%d rcnt=%lu\n",(int)wc[i].wr_id,rcnt_for_qp[wc[i].wr_id]);
 							return_value = 15;
 							goto cleaning;
 						}
@@ -4150,7 +4151,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 							sne = ibv_poll_cq(ctx->send_cq, 1, &credit_wc);
 							if (sne > 0) {
 								if (credit_wc.status != IBV_WC_SUCCESS) {
-									fprintf(stderr, "Poll send CQ error status=%u qp %d credit=%lu scredit=%d\n",
+									log_ebt("Poll send CQ error status=%u qp %d credit=%lu scredit=%d\n",
 											credit_wc.status,(int)credit_wc.wr_id,
 											rcnt_for_qp[credit_wc.wr_id],scredit_for_qp[credit_wc.wr_id]);
 									return_value = FAILURE;
@@ -4174,13 +4175,13 @@ int run_iter_bi(struct pingpong_context *ctx,
 										user_param->iters += user_param->cq_mod;
 								}
 							} else if (sne < 0) {
-								fprintf(stderr, "Poll send CQ ne=%d\n",sne);
+								log_ebt("Poll send CQ ne=%d\n",sne);
 								return_value = FAILURE;
 								goto cleaning;
 							}
 						}
 						if (ibv_post_send(ctx->qp[wc[i].wr_id],&ctx->ctrl_wr[wc[i].wr_id],&bad_wr)) {
-							fprintf(stderr,"Couldn't post send: qp%lu credit=%lu\n",wc[i].wr_id,rcnt_for_qp[wc[i].wr_id]);
+							log_ebt("Couldn't post send: qp%lu credit=%lu\n",wc[i].wr_id,rcnt_for_qp[wc[i].wr_id]);
 							return_value = FAILURE;
 							goto cleaning;
 						}
@@ -4191,7 +4192,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 			}
 
 		} else if (ne < 0) {
-			fprintf(stderr, "poll CQ failed %d\n", ne);
+			log_ebt("poll CQ failed %d\n", ne);
 			return_value = FAILURE;
 			goto cleaning;
 		}
@@ -4215,7 +4216,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 
 				if (wc_tx[i].opcode == IBV_WC_RDMA_WRITE) {
 					if (!ctx->send_rcredit) {
-						fprintf(stderr, "Polled RDMA_WRITE completion without recv credit request\n");
+						log_ebt("Polled RDMA_WRITE completion without recv credit request\n");
 						return_value = FAILURE;
 						goto cleaning;
 					}
@@ -4243,7 +4244,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 			}
 
 		} else if (ne < 0) {
-			fprintf(stderr, "poll CQ failed %d\n", ne);
+			log_ebt("poll CQ failed %d\n", ne);
 			return_value = FAILURE;
 			goto cleaning;
 		}
@@ -4347,7 +4348,7 @@ int run_iter_lat_write(struct pingpong_context *ctx,struct perftest_parameters *
 			err = post_send_method(ctx, 0, user_param);
 
 			if (err) {
-				fprintf(stderr,"Couldn't post send: scnt=%lu\n",scnt);
+				log_ebt("Couldn't post send: scnt=%lu\n",scnt);
 				return 1;
 			}
 		}
@@ -4371,7 +4372,7 @@ int run_iter_lat_write(struct pingpong_context *ctx,struct perftest_parameters *
 					user_param->iters++;
 
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt("poll CQ failed %d\n", ne);
 				return FAILURE;
 			}
 		}
@@ -4427,7 +4428,7 @@ int run_iter_lat(struct pingpong_context *ctx,struct perftest_parameters *user_p
 		err = post_send_method(ctx, 0, user_param);
 
 		if (err) {
-			fprintf(stderr,"Couldn't post send: scnt=%lu\n",scnt);
+			log_ebt("Couldn't post send: scnt=%lu\n",scnt);
 			return 1;
 		}
 
@@ -4436,7 +4437,7 @@ int run_iter_lat(struct pingpong_context *ctx,struct perftest_parameters *user_p
 
 		if (user_param->use_event) {
 			if (ctx_notify_events(ctx->channel)) {
-				fprintf(stderr, "Couldn't request CQ notification\n");
+				log_ebt("Couldn't request CQ notification\n");
 				return 1;
 			}
 		}
@@ -4452,7 +4453,7 @@ int run_iter_lat(struct pingpong_context *ctx,struct perftest_parameters *user_p
 					user_param->iters++;
 
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt("poll CQ failed %d\n", ne);
 				return FAILURE;
 			}
 
@@ -4541,13 +4542,13 @@ int run_iter_lat_send(struct pingpong_context *ctx,struct perftest_parameters *u
 					if (user_param->test_type == DURATION || (rcnt + size_per_qp <= user_param->iters)) {
 						if (user_param->use_srq) {
 							if (ibv_post_srq_recv(ctx->srq, &ctx->rwr[wc.wr_id], &bad_wr_recv)) {
-								fprintf(stderr, "Couldn't post recv SRQ. QP = %d: counter=%lu\n",(int)wc.wr_id, rcnt);
+								log_ebt("Couldn't post recv SRQ. QP = %d: counter=%lu\n",(int)wc.wr_id, rcnt);
 								return 1;
 							}
 
 						} else {
 							if (ibv_post_recv(ctx->qp[wc.wr_id], &ctx->rwr[wc.wr_id], &bad_wr_recv)) {
-								fprintf(stderr, "Couldn't post recv: rcnt=%lu\n", rcnt);
+								log_ebt("Couldn't post recv: rcnt=%lu\n", rcnt);
 								return 15;
 							}
 						}
@@ -4561,7 +4562,7 @@ int run_iter_lat_send(struct pingpong_context *ctx,struct perftest_parameters *u
 						}
 					}
 				} else if (ne < 0) {
-					fprintf(stderr, "poll CQ failed %d\n", ne);
+					log_ebt("poll CQ failed %d\n", ne);
 					return 1;
 				}
 			} while (!user_param->use_event && ne == 0);
@@ -4595,7 +4596,7 @@ int run_iter_lat_send(struct pingpong_context *ctx,struct perftest_parameters *u
 			err = post_send_method(ctx, 0, user_param);
 
 			if (err) {
-				fprintf(stderr,"Couldn't post send: scnt=%lu \n",scnt);
+				log_ebt("Couldn't post send: scnt=%lu \n",scnt);
 				return 1;
 			}
 			if (user_param->flows != DEF_FLOWS) {
@@ -4624,7 +4625,7 @@ int run_iter_lat_send(struct pingpong_context *ctx,struct perftest_parameters *u
 				} while (!user_param->use_event && s_ne == 0);
 
 				if (s_ne < 0) {
-					fprintf(stderr, "poll on Send CQ failed %d\n", s_ne);
+					log_ebt("poll on Send CQ failed %d\n", s_ne);
 					return FAILURE;
 				}
 
@@ -4678,19 +4679,19 @@ int run_iter_lat_burst_server(struct pingpong_context *ctx, struct perftest_para
 				if (rcnt%user_param->reply_every == 0 && scnt - ccnt < user_param->tx_depth) {
 					err = ibv_post_send(ctx->qp[0], &ctx->wr[0], &bad_wr);
 					if (err) {
-						fprintf(stderr, "Couldn't post send: scnt=%lu\n", scnt);
+						log_ebt("Couldn't post send: scnt=%lu\n", scnt);
 						return FAILURE;
 					}
 					scnt++;
 				}
 
 				if (ibv_post_recv(ctx->qp[wc_id], &ctx->rwr[wc_id], &bad_wr_recv)) {
-					fprintf(stderr, "Couldn't post recv Qp=%d rcnt=%ld\n", wc_id, rcnt);
+					log_ebt("Couldn't post recv Qp=%d rcnt=%ld\n", wc_id, rcnt);
 					return FAILURE;
 				}
 			}
 		} else if (ne < 0) {
-			fprintf(stderr, "poll CQ failed %d\n", ne);
+			log_ebt("poll CQ failed %d\n", ne);
 			return FAILURE;
 		}
 		ne = ibv_poll_cq(ctx->send_cq, CTX_POLL_BATCH, wc);
@@ -4704,7 +4705,7 @@ int run_iter_lat_burst_server(struct pingpong_context *ctx, struct perftest_para
 			}
 
 		} else if (ne < 0) {
-			fprintf(stderr, "poll CQ failed %d\n", ne);
+			log_ebt("poll CQ failed %d\n", ne);
 			return FAILURE;
 		}
 	}
@@ -4751,7 +4752,7 @@ int run_iter_lat_burst(struct pingpong_context *ctx, struct perftest_parameters 
 	/* If using rate limiter, calculate gap time between bursts */
 	cpu_mhz = get_cpu_mhz(user_param->cpu_freq_f);
 	if (cpu_mhz <= 0) {
-		fprintf(stderr, "Failed: couldn't acquire cpu frequency for rate limiter.\n");
+		log_ebt("Failed: couldn't acquire cpu frequency for rate limiter.\n");
 		return_value = FAILURE;
 		goto cleaning;
 	}
@@ -4768,7 +4769,7 @@ int run_iter_lat_burst(struct pingpong_context *ctx, struct perftest_parameters 
 					rate_limit_pps = user_param->rate_limit;
 					break;
 				default:
-					fprintf(stderr, " Failed: Unknown rate limit units\n");
+					log_ebt(" Failed: Unknown rate limit units\n");
 					return_value = FAILURE;
 					goto cleaning;
 			}
@@ -4797,7 +4798,7 @@ int run_iter_lat_burst(struct pingpong_context *ctx, struct perftest_parameters 
 			err = ibv_post_send(ctx->qp[0],&ctx->wr[0],&bad_wr);
 
 			if (err) {
-				fprintf(stderr, "Couldn't post send: scnt=%lu\n", totscnt);
+				log_ebt("Couldn't post send: scnt=%lu\n", totscnt);
 				return 1;
 			}
 			if (user_param->post_list == 1 && user_param->size <= (ctx->cycle_buffer / 2)) {
@@ -4827,12 +4828,12 @@ polling:
 						goto cleaning;
 					}
 					if (ibv_post_recv(ctx->qp[wc_id], &ctx->rwr[wc_id], &bad_wr_recv)) {
-						fprintf(stderr, "Couldn't post recv Qp=%d rcnt=%ld\n", wc_id, totrcnt);
+						log_ebt("Couldn't post recv Qp=%d rcnt=%ld\n", wc_id, totrcnt);
 						return FAILURE;
 					}
 				}
 			} else if (ne < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt("poll CQ failed %d\n", ne);
 				return_value = 1;
 				goto cleaning;
 			}
@@ -4848,7 +4849,7 @@ polling:
 					totccnt += user_param->cq_mod;
 				}
 			} else if (ns < 0) {
-				fprintf(stderr, "poll CQ failed %d\n", ne);
+				log_ebt("poll CQ failed %d\n", ne);
 				return_value = 1;
 				goto cleaning;
 			}
@@ -4899,7 +4900,7 @@ void catch_alarm(int sig)
 			duration_param->state = END_STATE;
 			break;
 		default:
-			fprintf(stderr,"unknown state\n");
+			log_ebt("unknown state\n");
 	}
 }
 
@@ -4909,11 +4910,11 @@ void check_alive(int sig)
 		check_alive_data.last_totrcnt = check_alive_data.current_totrcnt;
 		alarm(60);
 	} else if (check_alive_data.current_totrcnt == check_alive_data.last_totrcnt && check_alive_data.current_totrcnt < check_alive_data.g_total_iters) {
-		fprintf(stderr," Did not get Message for 120 Seconds, exiting..\n Total Received=%d, Total Iters Required=%d\n",check_alive_data.current_totrcnt, check_alive_data.g_total_iters);
+		log_ebt(" Did not get Message for 120 Seconds, exiting..\n Total Received=%d, Total Iters Required=%d\n",check_alive_data.current_totrcnt, check_alive_data.g_total_iters);
 
 		if (check_alive_data.is_events) {
 			/* Can't report BW, as we are stuck in event_loop */
-			fprintf(stderr," Due to this issue, Perftest cannot produce a report when in event mode.\n");
+			log_ebt(" Due to this issue, Perftest cannot produce a report when in event mode.\n");
 			exit(FAILURE);
 		}
 		else {
@@ -4956,7 +4957,7 @@ int check_packet_pacing_support(struct pingpong_context *ctx)
 	memset(&attr, 0, sizeof (struct ibv_device_attr_ex));
 
 	if (ibv_query_device_ex(ctx->context, NULL, &attr)) {
-		fprintf(stderr, "ibv_query_device_ex failed\n");
+		log_ebt("ibv_query_device_ex failed\n");
 		return FAILURE;
 	}
 
@@ -5008,7 +5009,7 @@ int run_iter_fs(struct pingpong_context *ctx, struct perftest_parameters *user_p
 			catch_alarm(0); /* move to next state */
 	}
 	if (set_up_fs_rules(flow_rules, ctx, user_param, allocated_flows)) {
-			fprintf(stderr, "Unable to set up flow rules\n");
+			log_ebt("Unable to set up flow rules\n");
 			retval = FAILURE;
 			goto cleaning;
 	}
@@ -5028,7 +5029,7 @@ int run_iter_fs(struct pingpong_context *ctx, struct perftest_parameters *user_p
 					user_param->tcompleted[tot_fs_cnt] = get_cycles();
 				if (!flow_create_result[flow_index]) {
 					perror("error");
-					fprintf(stderr, "Couldn't attach QP\n");
+					log_ebt("Couldn't attach QP\n");
 					retval = FAILURE;
 					goto cleaning;
 				}
@@ -5048,7 +5049,7 @@ cleaning:
 	for (flow_index = 0; flow_index < tot_iters; flow_index++) {
 		if (ibv_destroy_flow(flow_create_result[flow_index])) {
 			perror("error");
-			fprintf(stderr, "Couldn't destroy flow\n");
+			log_ebt("Couldn't destroy flow\n");
 		}
 	}
 	free(flow_rules);
@@ -5171,7 +5172,7 @@ error:
 
 int error_handler(char *error_message)
 {
-	fprintf(stderr, "%s\nERRNO: %s.\n", error_message, strerror(errno));
+	log_ebt("%s\nERRNO: %s.\n", error_message, strerror(errno));
 	return FAILURE;
 }
 

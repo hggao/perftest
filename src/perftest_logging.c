@@ -33,10 +33,6 @@ void log_msg(FILE *fp, int bt, const char *fn, int line, const char *func, const
     int rc;
     va_list args;
 
-    // First print the first standard part <filename@lineno:function >
-    fprintf(fp, "ERROR: %s@%d:%s ", fn, line, func);
-    
-    // Then print the remaining part
     va_start(args, fmt);
     rc = vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
@@ -44,10 +40,25 @@ void log_msg(FILE *fp, int bt, const char *fn, int line, const char *func, const
         fprintf(fp, "XXX: Error print log message.");
         return;
     }
-    fprintf(fp, buffer);
+    fprintf(fp, "ERROR: %s@%d:%s %s", fn, line, func, buffer);
 
-    // Lastly print the backtrace
     if (bt) {
         print_backtrace(fp);
     }
+}
+
+void dbg_msg(const char *fmt, ...)
+{
+    char buffer[1024];
+    int rc;
+    va_list args;
+
+    va_start(args, fmt);
+    rc = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    if (rc <= 0) {
+        fprintf(stdout, "XXX: Error print log message.");
+        return;
+    }
+    fprintf(stdout, "===DEBUG=== %s", buffer);
 }

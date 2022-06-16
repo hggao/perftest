@@ -2071,6 +2071,7 @@ int create_reg_qp_main(struct pingpong_context *ctx,
 				struct perftest_parameters *user_param,
 				int i, int num_of_qps)
 {
+	dbg_msg("user_param->use_xrc = %d\n", user_param->use_xrc);
 	if (user_param->use_xrc) {
 		#ifdef HAVE_XRCD
 		ctx->qp[i] = ctx_xrc_qp_create(ctx, user_param, i);

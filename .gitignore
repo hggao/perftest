@@ -17,6 +17,7 @@
 .deps
 
 # Automake
+config/
 Makefile
 Makefile.in
 aclocal.m4

@@ -60,6 +60,7 @@ static int set_mcast_group(struct pingpong_context *ctx,
 {
 	struct ibv_port_attr port_attr;
 
+	FUNCTION_ENTER;
 	if (ibv_query_gid(ctx->context,user_param->ib_port,user_param->gid_index,&mcg_params->port_gid)) {
 		return FAILURE;
 	}
@@ -98,6 +99,7 @@ static int send_set_up_connection(struct pingpong_context *ctx,
 {
 	int i;
 
+	FUNCTION_ENTER;
 	if (set_up_connection(ctx,user_param,my_dest)) {
 		log_ebt(" Unable to set up my IB connection parameters\n");
 		return FAILURE;
@@ -134,6 +136,7 @@ static int send_destroy_ctx(struct pingpong_context *ctx,
 		struct mcast_parameters *mcg_params)
 {
 	int i;
+	FUNCTION_ENTER;
 	if (user_param->use_mcg) {
 		for (i=0; i < user_param->num_of_qps; i++) {
 				if (ibv_detach_mcast(ctx->qp[i],&mcg_params->base_mgid,mcg_params->base_mlid)) {
@@ -176,6 +179,7 @@ int main(int argc, char *argv[])
 	struct perftest_parameters user_param;
 	struct perftest_comm	   user_comm;
 
+	FUNCTION_ENTER;
 	/* init default values to user's parameters */
 	memset(&ctx,		0, sizeof(struct pingpong_context));
 	memset(&user_param, 0, sizeof(struct perftest_parameters));

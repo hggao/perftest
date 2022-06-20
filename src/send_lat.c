@@ -179,7 +179,14 @@ int main(int argc, char *argv[])
 	struct perftest_parameters user_param;
 	struct perftest_comm	   user_comm;
 
+	//int cpu_mhz = get_cpu_mhz(0);
+	//printf("======= cpu_mhz: %d\n", cpu_mhz);
+	//long t0 = (long)get_cycles();
 	FUNCTION_ENTER;
+	//long t1 = (long)get_cycles();
+	//long dt = t1 - t0;
+	//printf("======= Time take by FUNCTION_ENTER: %ld cycles, %.3lf us\n", dt, (double)dt / cpu_mhz);
+
 	/* init default values to user's parameters */
 	memset(&ctx,		0, sizeof(struct pingpong_context));
 	memset(&user_param, 0, sizeof(struct perftest_parameters));

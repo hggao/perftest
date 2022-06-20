@@ -873,14 +873,21 @@ static int new_post_atomic_cs_sge_xrc(struct pingpong_context *ctx, int index,
 static inline int post_send_method(struct pingpong_context *ctx, int index,
 	struct perftest_parameters *user_param)
 {
+	int rc;
+	long t0, t1, dt;
+
 	FUNCTION_ENTER;
+	t0 = (long)get_cycles();
 	#ifdef HAVE_IBV_WR_API
 	if (!user_param->use_old_post_send)
 		return (*ctx->new_post_send_work_request_func_pointer)(ctx, index, user_param);
 	#endif
 	struct ibv_send_wr 	*bad_wr = NULL;
-	return ibv_post_send(ctx->qp[index], &ctx->wr[index*user_param->post_list], &bad_wr);
-
+	rc = ibv_post_send(ctx->qp[index], &ctx->wr[index*user_param->post_list], &bad_wr);
+	t1 = (long)get_cycles();
+	dt = t1 - t0;
+	printf("======= Time take by [post_send_method]: %ld cycles\n", dt);
+	return rc;
 }
 
 #ifdef HAVE_XRCD
